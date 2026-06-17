@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@theme {
+  /* ---------- Surfaces ---------- */
+  --color-bg:             #F4F8FB;   /* app background */
+  --color-surface:        #FFFFFF;   /* cards, navbar, inputs */
+  --color-surface-muted:  #F1F5F9;   /* table hover, score-bar track, ghost hover */
+  --color-surface-sky:    #E0F2FE;   /* avatar tile, soft sky fills */
+
+  /* ---------- Brand ---------- */
+  --color-primary:        #0284C7;   /* primary actions, primary line series, active links */
+  --color-primary-hover:  #0369A1;   /* primary button hover, active link text */
+  --color-primary-soft:   #E0F2FE;   /* active nav bg, info badge bg, focus ring */
+  --color-accent:         #0D9488;   /* secondary chart series, accent fills */
+  --color-accent-soft:    #CCFBF1;   /* env pill bg */
+
+  /* ---------- Text ---------- */
+  --color-text:           #0F172A;   /* headings, primary text */
+  --color-text-muted:     #64748B;   /* body, labels, secondary text */
+  --color-text-subtle:    #94A3B8;   /* captions, axis labels, placeholders */
+  --color-on-primary:     #FFFFFF;   /* text on primary button */
+
+  /* ---------- Lines ---------- */
+  --color-border:         #E2E8F0;   /* card borders, table dividers, chart grid */
+  --color-border-strong:  #CBD5E1;   /* input borders, secondary button border */
+
+  /* ---------- Status ---------- */
+  --color-success:        #10B981;   /* healthy, RMSE-down, success dot */
+  --color-success-soft:   #D1FAE5;   /* success badge bg */
+  --color-warning:        #F59E0B;   /* warning, borderline drift */
+  --color-warning-soft:   #FEF3C7;   /* warning badge bg, staging chip bg */
+  --color-danger:         #EF4444;   /* failure, drift detected, error */
+  --color-danger-soft:    #FEE2E2;   /* danger badge bg */
+  --color-info:           #0284C7;   /* informational badges (= primary) */
+  --color-info-soft:      #E0F2FE;   /* info badge bg (= primary-soft) */
+
+  /* ---------- AQI category scale (domain semantic) ---------- */
+  --color-aqi-good:           #10B981;  /* 0–50 */
+  --color-aqi-moderate:       #F59E0B;  /* 51–100 */
+  --color-aqi-unhealthy:      #F97316;  /* 101–150 (sensitive groups) */
+  --color-aqi-veryunhealthy:  #EF4444;  /* 151–200 */
+  --color-aqi-hazardous:      #9333EA;  /* 201+ */
+
+  /* ---------- Stage chip accents ---------- */
+  --color-stage-prod-bg:      #DCFCE7;  --color-stage-prod-text:     #15803D;
+  --color-stage-staging-bg:   #FEF3C7;  --color-stage-staging-text:  #B45309;
+  --color-stage-archived-bg:  #F1F5F9;  --color-stage-archived-text: #94A3B8;
+
+  /* ---------- Typography ---------- */
+  --font-ui:   "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --text-display: 28px;   /* stat value */
+  --text-title:   22px;   /* page title */
+  --text-card:    14px;   /* card heading / body */
+  --text-body:    13px;   /* default body */
+  --text-meta:    12px;   /* labels, captions */
+  --text-micro:   11px;   /* badges, eyebrow */
+
+  /* ---------- Spacing ---------- */
+  --spacing-1: 4px;   --spacing-2: 8px;   --spacing-3: 12px;  --spacing-4: 16px;
+  --spacing-5: 20px;  --spacing-6: 24px;  --spacing-8: 32px;  --spacing-10: 40px;
+
+  /* ---------- Radii ---------- */
+  --radius-sm:   6px;    /* nav links, small chips */
+  --radius-md:   10px;   /* buttons, inputs */
+  --radius-card: 14px;   /* cards, AQI tiles */
+  --radius-pill: 999px;  /* badges, dots, score bars */
+
+  /* ---------- Layout ---------- */
+  --max-content: 1240px; /* page max width */
+  --header-h:    60px;   /* navbar height */
+
+  /* ---------- Shadows ---------- */
+  --shadow-card: 0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
+  --shadow-pop:  0 8px 24px rgba(15,23,42,.12);
+}
+
+body {
+  font-family: var(--font-ui);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
