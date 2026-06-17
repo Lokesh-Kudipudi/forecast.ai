@@ -1,0 +1,15 @@
+import { PageHeader } from '../components/layout/PageHeader';
+
+export default function PipelinesPage() {
+  return (
+    <div className="mx-auto max-w-[1240px] px-6 py-8">
+      <PageHeader
+        title="Orchestration Pipelines"
+        subtitle="Apache Airflow DAG schedules and DVC dataset logs"
+      />
+      <div className="rounded-card border border-border bg-surface p-6 shadow-card">
+        <p className="text-body text-text-muted">Orchestration Pipelines placeholder. Data integration will be wired in Phase 6.</p>
+      </div>
+    </div>
+  );
+}
