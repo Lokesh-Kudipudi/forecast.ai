@@ -4,6 +4,12 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from services.mlflow_service import MlflowService
+from services.airflow_service import AirflowService
+from services.prometheus_service import PrometheusService
+from services.drift_service import DriftService
+
+
 app = FastAPI(title="forecast.ai API Mock Server")
 
 # Allow requests from all origins (e.g. Vite dev server on localhost:5173)
@@ -234,7 +240,20 @@ def get_health():
 
 @app.get("/overview/summary", response_model=OverviewSummary)
 def get_overview_summary():
-    # Dynamic hours for actual vs forecast
+    # 1. Fetch Model info from MLflow
+    prod_model = MlflowService.get_production_model()
+    val_rmse = MlflowService.get_validation_rmse(prod_model["run_id"])
+    
+    # 2. Fetch latency / throughput from Prometheus
+    mon_summary = PrometheusService.get_monitoring_summary()
+    
+    # 3. Fetch Drift metrics
+    drift_report = DriftService.calculate_drift()
+    
+    # 4. Fetch DAG health from Airflow Postgres DB
+    dag_health = AirflowService.get_dag_health()
+    
+    # 5. Dynamic hours for actual vs forecast comparison
     now = datetime.datetime.now(datetime.UTC)
     forecast_points = []
     actual_points = []
@@ -243,25 +262,36 @@ def get_overview_summary():
         forecast_points.append(TimeseriesPoint(t=time_str, value=float(100 + (i * 2) % 30)))
         actual_points.append(TimeseriesPoint(t=time_str, value=float(102 + (i * 2) % 30 + (i % 3 - 1) * 2)))
 
+    # Tracked Cities snap
+    city_snapshots = get_cities()
+
     return OverviewSummary(
         productionModel=ProductionModel(
-            name="aqi_forecaster_prod",
-            version="5",
-            stage="Production",
-            algorithm="RandomForest"
+            name=prod_model["name"],
+            version=prod_model["version"],
+            stage=prod_model["stage"],
+            algorithm=prod_model["algorithm"]
         ),
         validationRmse=MetricValue(
-            value=12.34,
-            trend=TrendDelta(direction="down", value=1.25, label="vs prev model")
+            value=val_rmse["value"],
+            trend=TrendDelta(
+                direction=val_rmse["trend"]["direction"],
+                value=val_rmse["trend"]["value"],
+                label=val_rmse["trend"]["label"]
+            )
         ),
         latencyP95Ms=MetricValue(
-            value=45.2,
-            trend=TrendDelta(direction="down", value=2.1, label="vs last 24h")
+            value=mon_summary["latency"]["p95"],
+            trend=TrendDelta(
+                direction=mon_summary["requestsPerMin"]["trend"]["direction"],
+                value=mon_summary["requestsPerMin"]["trend"]["value"],
+                label="vs last 24h"
+            )
         ),
         drift=DriftSummary(
-            driftingCount=1,
-            total=4,
-            worstFeature="pm25_historical"
+            driftingCount=drift_report["driftingCount"],
+            total=drift_report["total"],
+            worstFeature=drift_report["worst"]["feature"] if drift_report["worst"] else None
         ),
         forecastVsActual=ForecastVsActual(
             forecast=forecast_points,
@@ -269,17 +299,16 @@ def get_overview_summary():
             rmse=1.15
         ),
         dagHealth=[
-            DagSummary(dag="hourly_ingestion", schedule="0 * * * *", lastRun="2026-06-17T19:00:00Z", avgDurationSeconds=12.5, successRate=0.99, status="success"),
-            DagSummary(dag="weekly_retraining", schedule="0 0 * * 0", lastRun="2026-06-14T00:00:00Z", avgDurationSeconds=125.4, successRate=1.0, status="success"),
-            DagSummary(dag="drift_check", schedule="*/30 * * * *", lastRun="2026-06-17T19:30:00Z", avgDurationSeconds=34.1, successRate=0.95, status="warning"),
-            DagSummary(dag="dvc_push", schedule="0 1 * * *", lastRun="2026-06-17T01:00:00Z", avgDurationSeconds=45.0, successRate=0.88, status="failed")
+            DagSummary(
+                dag=d["dag"],
+                schedule=d["schedule"],
+                lastRun=d["lastRun"],
+                avgDurationSeconds=d["avgDurationSeconds"],
+                successRate=d["successRate"],
+                status=d["status"]
+            ) for d in dag_health
         ],
-        citySnapshot=[
-            CitySnapshot(city="Delhi", aqi=185, category="veryUnhealthy", peak24h=210, pm25=120.5, updatedAt="2026-06-17T19:45:00Z"),
-            CitySnapshot(city="Beijing", aqi=115, category="unhealthySensitive", peak24h=130, pm25=41.2, updatedAt="2026-06-17T19:40:00Z"),
-            CitySnapshot(city="London", aqi=65, category="moderate", peak24h=72, pm25=18.5, updatedAt="2026-06-17T19:35:00Z"),
-            CitySnapshot(city="New York", aqi=42, category="good", peak24h=48, pm25=10.1, updatedAt="2026-06-17T19:30:00Z")
-        ]
+        citySnapshot=city_snapshots
     )
 
 @app.get("/cities", response_model=List[CitySnapshot])
@@ -288,7 +317,11 @@ def get_cities():
         CitySnapshot(city="Delhi", aqi=185, category="veryUnhealthy", peak24h=210, pm25=120.5, updatedAt="2026-06-17T19:45:00Z"),
         CitySnapshot(city="Beijing", aqi=115, category="unhealthySensitive", peak24h=130, pm25=41.2, updatedAt="2026-06-17T19:40:00Z"),
         CitySnapshot(city="London", aqi=65, category="moderate", peak24h=72, pm25=18.5, updatedAt="2026-06-17T19:35:00Z"),
-        CitySnapshot(city="New York", aqi=42, category="good", peak24h=48, pm25=10.1, updatedAt="2026-06-17T19:30:00Z")
+        CitySnapshot(city="New York", aqi=42, category="good", peak24h=48, pm25=10.1, updatedAt="2026-06-17T19:30:00Z"),
+        CitySnapshot(city="Rajahmundry", aqi=75, category="moderate", peak24h=88, pm25=24.2, updatedAt="2026-06-17T19:45:00Z"),
+        CitySnapshot(city="Tada", aqi=35, category="good", peak24h=45, pm25=8.5, updatedAt="2026-06-17T19:45:00Z"),
+        CitySnapshot(city="Chennai", aqi=95, category="moderate", peak24h=110, pm25=32.8, updatedAt="2026-06-17T19:45:00Z"),
+        CitySnapshot(city="Sri City", aqi=45, category="good", peak24h=55, pm25=11.2, updatedAt="2026-06-17T19:45:00Z"),
     ]
 
 @app.post("/predict", response_model=ForecastResult)
@@ -304,21 +337,35 @@ def post_predict(request: PredictRequest):
         current = CurrentConditions(aqi=65, category="moderate", pm25=18.5, pm10=30.2, temperature=18.0, humidity=80.0, windSpeed=5.8)
     elif "new" in city_normalized.lower() or "york" in city_normalized.lower():
         current = CurrentConditions(aqi=42, category="good", pm25=10.1, pm10=15.0, temperature=21.0, humidity=55.0, windSpeed=6.2)
+    elif "raj" in city_normalized.lower():
+        current = CurrentConditions(aqi=75, category="moderate", pm25=24.2, pm10=45.0, temperature=32.0, humidity=75.0, windSpeed=2.8)
+    elif "tad" in city_normalized.lower():
+        current = CurrentConditions(aqi=35, category="good", pm25=8.5, pm10=16.0, temperature=30.0, humidity=70.0, windSpeed=4.2)
+    elif "che" in city_normalized.lower():
+        current = CurrentConditions(aqi=95, category="moderate", pm25=32.8, pm10=55.0, temperature=34.0, humidity=65.0, windSpeed=3.8)
+    elif "sri" in city_normalized.lower():
+        current = CurrentConditions(aqi=45, category="good", pm25=11.2, pm10=22.0, temperature=29.0, humidity=68.0, windSpeed=3.5)
     else:
         # Default fallback for arbitrary city
         current = CurrentConditions(aqi=85, category="moderate", pm25=28.1, pm10=45.0, temperature=22.0, humidity=60.0, windSpeed=4.0)
     
-    # 24 hours of hourly predictions
+    # Log incoming request features to evaluate drift dynamically
+    DriftService.log_request({
+        "temperature": current.temperature,
+        "humidity": current.humidity,
+        "wind_speed": current.windSpeed,
+        "pm25_historical": current.pm25
+    })
+
+    # Fetch production model and run inference
+    prod_model = MlflowService.get_production_model()
+    features_list = [current.temperature, current.humidity, current.windSpeed, current.pm25]
+    hourly_aqis = MlflowService.predict_aqi(city_normalized, features_list)
+
     hourly = []
-    base_aqi = current.aqi
-    categories = ["good", "moderate", "unhealthySensitive", "veryUnhealthy", "hazardous"]
-    
-    for i in range(24):
+    for i, aqi_val in enumerate(hourly_aqis):
         hour_val = (i + 1) % 24
         hour_str = f"{hour_val:02d}:00"
-        
-        # Add some variation to AQI
-        aqi_val = max(10, base_aqi + int((i % 6 - 3) * 8))
         
         # Calculate category
         if aqi_val <= 50:
@@ -332,14 +379,15 @@ def post_predict(request: PredictRequest):
         else:
             cat = "hazardous"
             
-        hourly.append(HourlyForecastPoint(hour=hour_str, aqi=aqi_val, category=cat))
+        hourly.append(HourlyForecastPoint(hour=hour_str, aqi=int(aqi_val), category=cat))
         
     return ForecastResult(
         city=city_normalized,
         current=current,
         hourly=hourly,
-        modelVersion="5"
+        modelVersion=prod_model["version"]
     )
+
 
 @app.get("/models", response_model=ModelsResponse)
 def get_models():
