@@ -8,6 +8,7 @@ from services.mlflow_service import MlflowService
 from services.airflow_service import AirflowService
 from services.prometheus_service import PrometheusService
 from services.drift_service import DriftService
+from services.dvc_service import DvcService
 
 
 app = FastAPI(title="forecast.ai API Mock Server")
@@ -404,29 +405,27 @@ def get_drift_latest():
 
 @app.get("/pipelines/dags", response_model=List[DagSummary])
 def get_pipelines_dags():
-    return [
-        DagSummary(dag="hourly_ingestion", schedule="0 * * * *", lastRun="2026-06-17T19:00:00Z", avgDurationSeconds=12.5, successRate=0.99, status="success"),
-        DagSummary(dag="weekly_retraining", schedule="0 0 * * 0", lastRun="2026-06-14T00:00:00Z", avgDurationSeconds=125.4, successRate=1.0, status="success"),
-        DagSummary(dag="drift_check", schedule="*/30 * * * *", lastRun="2026-06-17T19:30:00Z", avgDurationSeconds=34.1, successRate=0.95, status="warning"),
-        DagSummary(dag="dvc_push", schedule="0 1 * * *", lastRun="2026-06-17T01:00:00Z", avgDurationSeconds=45.0, successRate=0.88, status="failed")
-    ]
+    try:
+        res = AirflowService.get_dag_health()
+        return [DagSummary(**d) for d in res]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/pipelines/runs", response_model=List[DagRun])
 def get_pipelines_runs():
-    return [
-        DagRun(dag="hourly_ingestion", runId="run_ingest_123", startedAt="2026-06-17T19:00:00Z", durationSeconds=14.2, dvcVersion="ef91b2c", status="success"),
-        DagRun(dag="drift_check", runId="run_drift_456", startedAt="2026-06-17T19:30:00Z", durationSeconds=33.1, dvcVersion="ef91b2c", status="success"),
-        DagRun(dag="hourly_ingestion", runId="run_ingest_122", startedAt="2026-06-17T18:00:00Z", durationSeconds=11.5, dvcVersion="ef91b2c", status="success"),
-        DagRun(dag="dvc_push", runId="run_push_789", startedAt="2026-06-17T01:00:00Z", durationSeconds=45.0, dvcVersion="9c21b5a", status="failed")
-    ]
+    try:
+        res = AirflowService.get_dag_runs()
+        return [DagRun(**r) for r in res]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/dvc/versions", response_model=List[DvcVersion])
 def get_dvc_versions():
-    return [
-        DvcVersion(hash="ef91b2c", rows=24500, pushedAt="2026-06-17T00:05:00Z", remote="DagsHub"),
-        DvcVersion(hash="9c21b5a", rows=24404, pushedAt="2026-06-16T00:05:00Z", remote="DagsHub"),
-        DvcVersion(hash="a3bf72c", rows=24308, pushedAt="2026-06-15T00:05:00Z", remote="DagsHub")
-    ]
+    try:
+        res = DvcService.get_versions()
+        return [DvcVersion(**v) for v in res]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/monitoring/summary", response_model=MonitoringSummary)
 def get_monitoring_summary():

@@ -19,7 +19,7 @@ class AirflowService:
     def get_dag_health():
         """
         Directly queries the Airflow Postgres metadata database to aggregate DAG health metrics.
-        Falls back to mock data if the DB is unreachable.
+        Raises exception if the database is unreachable.
         """
         dags = ["hourly_ingestion", "weekly_retraining", "drift_check", "dvc_push"]
         schedules = {
@@ -80,12 +80,72 @@ class AirflowService:
                 
             return results
         except Exception as e:
-            logger.warning(f"Failed to query Airflow Postgres database: {e}. Falling back to mock DAG health.")
+            logger.error(f"Failed to query Airflow Postgres database for DAG health: {e}")
+            raise
+
+    @staticmethod
+    def get_dag_runs(limit=10):
+        """
+        Directly queries the Airflow Postgres database to retrieve recent DAG runs history.
+        Raises exception if DB connection fails.
+        """
+        dags = ["hourly_ingestion", "weekly_retraining", "drift_check", "dvc_push"]
+        
+        try:
+            conn = psycopg2.connect(settings.airflow_db_url, connect_timeout=3)
+            cursor = conn.cursor()
             
-        # Fallback Mock Data
-        return [
-            {"dag": "hourly_ingestion", "schedule": "0 * * * *", "lastRun": "2026-06-17T19:00:00Z", "avgDurationSeconds": 12.5, "successRate": 0.99, "status": "success"},
-            {"dag": "weekly_retraining", "schedule": "0 0 * * 0", "lastRun": "2026-06-14T00:00:00Z", "avgDurationSeconds": 125.4, "successRate": 1.0, "status": "success"},
-            {"dag": "drift_check", "schedule": "*/30 * * * *", "lastRun": "2026-06-17T19:30:00Z", "avgDurationSeconds": 34.1, "successRate": 0.95, "status": "warning"},
-            {"dag": "dvc_push", "schedule": "0 1 * * *", "lastRun": "2026-06-17T01:00:00Z", "avgDurationSeconds": 45.0, "successRate": 0.88, "status": "failed"}
-        ]
+            # Query recent runs
+            query = """
+                SELECT 
+                    dag_id,
+                    run_id,
+                    start_date,
+                    end_date,
+                    state
+                FROM dag_run
+                WHERE dag_id IN (%s, %s, %s, %s)
+                ORDER BY start_date DESC
+                LIMIT %s;
+            """
+            cursor.execute(query, tuple(dags) + (limit,))
+            rows = cursor.fetchall()
+            
+            cursor.close()
+            conn.close()
+            
+            runs = []
+            for row in rows:
+                dag_id, run_id, start_date, end_date, state = row
+                
+                # Calculate duration in seconds
+                duration = 0.0
+                if start_date and end_date:
+                    duration = round((end_date - start_date).total_seconds(), 1)
+                elif start_date:
+                    from datetime import datetime, timezone
+                    duration = round((datetime.now(timezone.utc) - start_date).total_seconds(), 1)
+                
+                # Get the active DVC version hash
+                dvc_ver = "—"
+                try:
+                    from services.dvc_service import DvcService
+                    versions = DvcService.get_versions()
+                    if versions:
+                        dvc_ver = versions[0]["hash"]
+                except Exception:
+                    pass
+                
+                runs.append({
+                    "dag": dag_id,
+                    "runId": run_id,
+                    "startedAt": start_date.isoformat() if start_date else "—",
+                    "durationSeconds": duration,
+                    "dvcVersion": dvc_ver,
+                    "status": STATE_MAP.get(state, "success")
+                })
+                
+            return runs
+        except Exception as e:
+            logger.error(f"Failed to query Airflow Postgres database for runs: {e}")
+            raise
