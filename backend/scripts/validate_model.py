@@ -146,9 +146,13 @@ def run_retraining_pipeline():
             result_notes = f"Promoted automatically to Production (RMSE: {improved_rmse:.2f} vs Prod: {prod_rmse:.2f}, Baseline improvement: {improvement_vs_baseline:.2f}%)."
             print(result_notes)
             
-            # Register version
+            # Register version via direct MlflowClient calls to bypass fluent API validation errors
             model_uri = f"runs:/{run_id}/model"
-            mv = mlflow.register_model(model_uri, "aqi_forecaster_prod")
+            try:
+                client.create_registered_model("aqi_forecaster_prod")
+            except Exception:
+                pass
+            mv = client.create_model_version(name="aqi_forecaster_prod", source=model_uri, run_id=run_id)
             
             # Promote to Production (archives previous)
             client.transition_model_version_stage(
@@ -165,9 +169,13 @@ def run_retraining_pipeline():
             result_notes = f"Registered to Staging. RMSE: {improved_rmse:.2f} (vs baseline: {baseline_rmse:.2f})."
             print(result_notes)
             
-            # Register version
+            # Register version via direct MlflowClient calls to bypass fluent API validation errors
             model_uri = f"runs:/{run_id}/model"
-            mv = mlflow.register_model(model_uri, "aqi_forecaster_prod")
+            try:
+                client.create_registered_model("aqi_forecaster_prod")
+            except Exception:
+                pass
+            mv = client.create_model_version(name="aqi_forecaster_prod", source=model_uri, run_id=run_id)
             
             # Transition to Staging
             client.transition_model_version_stage(
