@@ -8,8 +8,8 @@ class Settings(BaseSettings):
         "postgresql://airflow:airflow@localhost:5432/airflow"
     )
     
-    # MLflow tracking server URI
-    mlflow_tracking_uri: str = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    # MLflow tracking server URI (trailing slashes stripped to prevent double-slash URLs)
+    mlflow_tracking_uri: str = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000").rstrip("/")
     
     # Prometheus server API URL
     prometheus_url: str = os.getenv("PROMETHEUS_URL", "http://localhost:9090")

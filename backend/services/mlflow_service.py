@@ -34,7 +34,7 @@ class MlflowService:
         Raises an exception if MLflow is unreachable or no production version is registered.
         """
         url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/model-versions/search"
-        response = requests.post(url, json={"filter": "name='aqi_forecaster_prod'"}, timeout=3.0)
+        response = requests.get(url, params={"filter": "name='aqi_forecaster_prod'"}, timeout=3.0)
         if response.status_code != 200:
             raise Exception(f"MLflow service error: search model versions returned {response.status_code}")
         
@@ -144,7 +144,7 @@ class MlflowService:
         Raises an exception on failure.
         """
         url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/model-versions/search"
-        response = requests.post(url, json={"filter": f"name='{model_name}'"}, timeout=4.0)
+        response = requests.get(url, params={"filter": f"name='{model_name}'"}, timeout=4.0)
         if response.status_code != 200:
             raise Exception(f"MLflow service error: search model versions returned status {response.status_code}")
             
