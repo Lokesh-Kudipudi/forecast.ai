@@ -16,4 +16,5 @@ dependencies = [
     "requests>=2.32.3",
     "pydantic-settings>=2.7.1",
     "prometheus-client>=0.25.0",
+    "skops>=0.14.0",
 ]
