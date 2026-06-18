@@ -15,4 +15,5 @@ dependencies = [
     "psycopg2-binary>=2.9.10",
     "requests>=2.32.3",
     "pydantic-settings>=2.7.1",
+    "prometheus-client>=0.25.0",
 ]

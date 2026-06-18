@@ -1,10 +1,12 @@
 import datetime
 import os
 import logging
+import time
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 # Configure persistent logging for MLOps audit trails
 log_dir = "/var/log/forecast_ai"
@@ -32,6 +34,39 @@ from services.dvc_service import DvcService
 
 
 app = FastAPI(title="forecast.ai API Mock Server")
+
+# --- Prometheus Instrumentation ---
+HTTP_REQUESTS_TOTAL = Counter(
+    "http_requests_total",
+    "Total number of HTTP requests",
+    ["method", "endpoint", "status"]
+)
+
+HTTP_REQUEST_DURATION_SECONDS = Histogram(
+    "http_request_duration_seconds",
+    "HTTP request duration in seconds",
+    ["method", "endpoint"]
+)
+
+@app.middleware("http")
+async def prometheus_middleware(request, call_next):
+    start_time = time.time()
+    
+    endpoint = request.url.path
+    # Exclude /metrics from logging to avoid self-scraping telemetry noise
+    if endpoint == "/metrics":
+        return await call_next(request)
+        
+    response = await call_next(request)
+    
+    duration = time.time() - start_time
+    status = str(response.status_code)
+    method = request.method
+    
+    HTTP_REQUESTS_TOTAL.labels(method=method, endpoint=endpoint, status=status).inc()
+    HTTP_REQUEST_DURATION_SECONDS.labels(method=method, endpoint=endpoint).observe(duration)
+    
+    return response
 
 # Allow requests from all origins (e.g. Vite dev server on localhost:5173)
 app.add_middleware(
@@ -221,6 +256,10 @@ class Alert(BaseModel):
 @app.get("/health")
 def get_health():
     return {"status": "ok"}
+
+@app.get("/metrics")
+def get_metrics():
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 @app.get("/overview/summary", response_model=OverviewSummary)
 def get_overview_summary():
