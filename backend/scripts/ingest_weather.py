@@ -6,14 +6,9 @@ import numpy as np
 
 # Coordinates for default cities
 CITY_COORDINATES = {
-    "Delhi": {"lat": 28.6139, "lon": 77.2090},
-    "Beijing": {"lat": 39.9042, "lon": 116.4074},
-    "London": {"lat": 51.5074, "lon": -0.1278},
-    "New York": {"lat": 40.7128, "lon": -74.0060},
     "Rajahmundry": {"lat": 17.0005, "lon": 81.8040},
     "Tada": {"lat": 13.5937, "lon": 80.0268},
-    "Chennai": {"lat": 13.0827, "lon": 80.2707},
-    "Sri City": {"lat": 13.5300, "lon": 80.0300}
+    "Chennai": {"lat": 13.0827, "lon": 80.2707}
 }
 
 def fetch_weather_and_pollution(city, lat, lon, api_key):
@@ -27,10 +22,8 @@ def fetch_weather_and_pollution(city, lat, lon, api_key):
         np.random.seed(None)
         
         # Approximate baseline for cities
-        temp_base = {"Delhi": 35.0, "Beijing": 22.0, "London": 15.0, "New York": 20.0,
-                     "Rajahmundry": 32.0, "Tada": 30.0, "Chennai": 33.0, "Sri City": 30.0}
-        pm25_base = {"Delhi": 110.0, "Beijing": 45.0, "London": 15.0, "New York": 12.0,
-                     "Rajahmundry": 25.0, "Tada": 8.0, "Chennai": 30.0, "Sri City": 11.0}
+        temp_base = {"Rajahmundry": 32.0, "Tada": 30.0, "Chennai": 33.0}
+        pm25_base = {"Rajahmundry": 25.0, "Tada": 8.0, "Chennai": 30.0}
         
         t = temp_base.get(city, 25.0) + np.random.normal(0, 2.0)
         h = max(20, min(100, 60.0 + np.random.normal(0, 10.0)))

@@ -193,44 +193,7 @@ class Alert(BaseModel):
     message: str
     severity: str  # "warning" | "critical"
 
-# --- Mock Data ---
-
-mock_models = [
-    ModelVersion(version="8", algorithm="XGBoost", stage="Staging", rmse=10.12, mae=7.45, registeredAt="2026-06-16T10:00:00Z"),
-    ModelVersion(version="5", algorithm="RandomForest", stage="Production", rmse=12.34, mae=8.90, registeredAt="2026-06-10T14:30:00Z"),
-    ModelVersion(version="1", algorithm="LinearRegression", stage="Archived", rmse=15.67, mae=11.20, registeredAt="2026-05-20T08:00:00Z")
-]
-
-mock_promotion_history = [
-    PromotionEvent(at="2026-06-10T14:35:00Z", change="v5 -> Production", trigger="manual", note="Promoted manually by operator after weekly training verified improvement."),
-    PromotionEvent(at="2026-05-20T08:05:00Z", change="v1 -> Production", trigger="auto", note="Initial baseline model deployment.")
-]
-
-mock_training_runs = [
-    TrainingRunDetail(
-        runId="run_20260616_01", startedAt="2026-06-16T09:45:00Z", nEstimators=120, maxDepth=6,
-        baselineRmse=15.67, improvedRmse=10.12, result="Promoted to Staging", status="finished",
-        mae=7.45, dvcVersion="a3bf72c", artifactPath="s3://mlflow-artifacts/1/run_20260616_01/artifacts/model",
-        registeredVersion="8"
-    ),
-    TrainingRunDetail(
-        runId="run_20260610_01", startedAt="2026-06-10T14:00:00Z", nEstimators=100, maxDepth=5,
-        baselineRmse=15.67, improvedRmse=12.34, result="Promoted to Production", status="finished",
-        mae=8.90, dvcVersion="ef91b2c", artifactPath="s3://mlflow-artifacts/1/run_20260610_01/artifacts/model",
-        registeredVersion="5"
-    ),
-    TrainingRunDetail(
-        runId="run_20260603_01", startedAt="2026-06-03T14:00:00Z", nEstimators=80, maxDepth=4,
-        baselineRmse=15.67, improvedRmse=16.10, result="Failed validation (RMSE > baseline)", status="finished",
-        mae=12.11, dvcVersion="9c21b5a", artifactPath="s3://mlflow-artifacts/1/run_20260603_01/artifacts/model",
-        registeredVersion=None
-    ),
-    TrainingRunDetail(
-        runId="run_20260527_01", startedAt="2026-06-17T08:00:00Z", nEstimators=100, maxDepth=5,
-        baselineRmse=15.67, improvedRmse=None, result="Ingestion failed", status="failed",
-        mae=None, dvcVersion="None", artifactPath="None", registeredVersion=None
-    )
-]
+# --- Real Services Integration (No Mock Fallbacks) ---
 
 # --- Endpoints ---
 
@@ -314,14 +277,9 @@ def get_overview_summary():
 @app.get("/cities", response_model=List[CitySnapshot])
 def get_cities():
     return [
-        CitySnapshot(city="Delhi", aqi=185, category="veryUnhealthy", peak24h=210, pm25=120.5, updatedAt="2026-06-17T19:45:00Z"),
-        CitySnapshot(city="Beijing", aqi=115, category="unhealthySensitive", peak24h=130, pm25=41.2, updatedAt="2026-06-17T19:40:00Z"),
-        CitySnapshot(city="London", aqi=65, category="moderate", peak24h=72, pm25=18.5, updatedAt="2026-06-17T19:35:00Z"),
-        CitySnapshot(city="New York", aqi=42, category="good", peak24h=48, pm25=10.1, updatedAt="2026-06-17T19:30:00Z"),
         CitySnapshot(city="Rajahmundry", aqi=75, category="moderate", peak24h=88, pm25=24.2, updatedAt="2026-06-17T19:45:00Z"),
         CitySnapshot(city="Tada", aqi=35, category="good", peak24h=45, pm25=8.5, updatedAt="2026-06-17T19:45:00Z"),
         CitySnapshot(city="Chennai", aqi=95, category="moderate", peak24h=110, pm25=32.8, updatedAt="2026-06-17T19:45:00Z"),
-        CitySnapshot(city="Sri City", aqi=45, category="good", peak24h=55, pm25=11.2, updatedAt="2026-06-17T19:45:00Z"),
     ]
 
 @app.post("/predict", response_model=ForecastResult)
@@ -329,25 +287,15 @@ def post_predict(request: PredictRequest):
     city_normalized = request.city.strip().title()
     
     # Pre-canned mock responses depending on query
-    if "del" in city_normalized.lower():
-        current = CurrentConditions(aqi=185, category="veryUnhealthy", pm25=120.5, pm10=185.2, temperature=38.5, humidity=65.0, windSpeed=3.2)
-    elif "bej" in city_normalized.lower() or "pei" in city_normalized.lower():
-        current = CurrentConditions(aqi=115, category="unhealthySensitive", pm25=41.2, pm10=78.5, temperature=24.0, humidity=50.0, windSpeed=4.5)
-    elif "lon" in city_normalized.lower():
-        current = CurrentConditions(aqi=65, category="moderate", pm25=18.5, pm10=30.2, temperature=18.0, humidity=80.0, windSpeed=5.8)
-    elif "new" in city_normalized.lower() or "york" in city_normalized.lower():
-        current = CurrentConditions(aqi=42, category="good", pm25=10.1, pm10=15.0, temperature=21.0, humidity=55.0, windSpeed=6.2)
-    elif "raj" in city_normalized.lower():
+    if "raj" in city_normalized.lower():
         current = CurrentConditions(aqi=75, category="moderate", pm25=24.2, pm10=45.0, temperature=32.0, humidity=75.0, windSpeed=2.8)
     elif "tad" in city_normalized.lower():
         current = CurrentConditions(aqi=35, category="good", pm25=8.5, pm10=16.0, temperature=30.0, humidity=70.0, windSpeed=4.2)
     elif "che" in city_normalized.lower():
         current = CurrentConditions(aqi=95, category="moderate", pm25=32.8, pm10=55.0, temperature=34.0, humidity=65.0, windSpeed=3.8)
-    elif "sri" in city_normalized.lower():
-        current = CurrentConditions(aqi=45, category="good", pm25=11.2, pm10=22.0, temperature=29.0, humidity=68.0, windSpeed=3.5)
     else:
-        # Default fallback for arbitrary city
-        current = CurrentConditions(aqi=85, category="moderate", pm25=28.1, pm10=45.0, temperature=22.0, humidity=60.0, windSpeed=4.0)
+        # Default fallback
+        current = CurrentConditions(aqi=35, category="good", pm25=8.5, pm10=16.0, temperature=30.0, humidity=70.0, windSpeed=4.2)
     
     # Log incoming request features to evaluate drift dynamically
     DriftService.log_request({
@@ -391,69 +339,43 @@ def post_predict(request: PredictRequest):
 
 @app.get("/models", response_model=ModelsResponse)
 def get_models():
-    return ModelsResponse(
-        name="aqi_forecaster_prod",
-        versions=mock_models,
-        production=MetricValue(
-            value=12.34,
-            trend=TrendDelta(direction="down", value=3.33, label="vs baseline")
-        ),
-        lastPromotion=mock_promotion_history[0] if mock_promotion_history else None,
-        candidateComparison=CandidateComparison(
-            baselineRmse=15.67,
-            productionRmse=12.34,
-            candidateRmse=10.12,
-            candidateVersion="8",
-            beatsBaseline=True,
-            beatsProduction=True
-        ),
-        promotionHistory=mock_promotion_history
-    )
+    try:
+        summary = MlflowService.get_models_registry_summary("aqi_forecaster_prod")
+        return ModelsResponse(**summary)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/models/{name}/versions/{version}/promote", response_model=PromotionResult)
 def post_promote_model(name: str, version: str):
-    # Check if model exists
-    target = None
-    for m in mock_models:
-        if m.version == version:
-            target = m
-            break
-            
-    if not target:
-        raise HTTPException(status_code=404, detail=f"Model version {version} not found in MLflow registry")
-        
-    # Mark old Production model as Archived
-    for m in mock_models:
-        if m.stage == "Production":
-            m.stage = "Archived"
-            
-    # Mark new model as Production
-    target.stage = "Production"
-    
-    # Record in history
-    now_str = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    new_event = PromotionEvent(
-        at=now_str,
-        change=f"v{version} -> Production",
-        trigger="manual",
-        note=f"Promoted manually by operator via MLOps Console."
-    )
-    mock_promotion_history.insert(0, new_event)
-    
-    return PromotionResult(name=name, version=version, newStage="Production")
+    try:
+        res = MlflowService.transition_model_stage(name, version, "Production")
+        return PromotionResult(**res)
+    except Exception as e:
+        err_msg = str(e)
+        if "not found" in err_msg.lower():
+            raise HTTPException(status_code=404, detail=err_msg)
+        raise HTTPException(status_code=500, detail=err_msg)
+
 
 @app.get("/runs", response_model=List[TrainingRun])
 def get_runs(status: Optional[str] = Query(None)):
-    if status:
-        return [r for r in mock_training_runs if r.status == status]
-    return mock_training_runs
+    try:
+        res = MlflowService.get_runs(status)
+        return [TrainingRun(**r) for r in res]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/runs/{runId}", response_model=TrainingRunDetail)
 def get_run_detail(runId: str):
-    for r in mock_training_runs:
-        if r.runId == runId:
-            return r
-    raise HTTPException(status_code=404, detail=f"Training run {runId} not found")
+    try:
+        res = MlflowService.get_run_detail(runId)
+        return TrainingRunDetail(**res)
+    except Exception as e:
+        err_msg = str(e)
+        if "not found" in err_msg.lower():
+            raise HTTPException(status_code=404, detail=err_msg)
+        raise HTTPException(status_code=500, detail=err_msg)
 
 @app.get("/drift/latest", response_model=DriftReport)
 def get_drift_latest():

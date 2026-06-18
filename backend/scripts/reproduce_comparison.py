@@ -12,8 +12,12 @@ def load_or_create_data(data_path="data/historical_aqi.csv"):
     Loads historical dataset, creating it if it doesn't exist.
     """
     if os.path.exists(data_path):
-        print(f"Loading existing historical dataset from {data_path}...")
-        return pd.read_csv(data_path)
+        df = pd.read_csv(data_path)
+        if len(df) >= 10:
+            print(f"Loading existing historical dataset from {data_path} ({len(df)} records)...")
+            return df
+        else:
+            print(f"Historical dataset at {data_path} has too few records ({len(df)}). Generating synthetic baseline for training...")
     
     print("Historical dataset not found. Generating baseline training dataset...")
     os.makedirs(os.path.dirname(data_path), exist_ok=True)
