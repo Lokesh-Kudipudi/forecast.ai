@@ -8,5 +8,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 USER airflow
-# Install uv and dvc in the airflow user's python environment
-RUN pip install --no-cache-dir uv dvc
+RUN pip install --no-cache-dir uv dvc scikit-learn mlflow-skinny skops email-validator "numpy<2.0.0"
