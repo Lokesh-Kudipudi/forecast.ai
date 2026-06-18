@@ -99,7 +99,7 @@ def run_retraining_pipeline():
     prod_rmse = 15.67  # Default fallback if registry empty
     has_production_model = False
     try:
-        latest_versions = client.get_latest_versions("aqi_forecaster_prod")
+        latest_versions = client.search_model_versions(filter_string="name='aqi_forecaster_prod'")
         prod_ver = next((v for v in latest_versions if v.current_stage == "Production"), None)
         if prod_ver:
             prod_run = client.get_run(prod_ver.run_id)
