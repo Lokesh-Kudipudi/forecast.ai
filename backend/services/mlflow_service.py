@@ -31,43 +31,39 @@ class MlflowService:
     def get_production_model():
         """
         Queries MLflow to get the current production model version and metadata.
+        Uses the model alias endpoint to find the 'champion' version.
         Raises an exception if MLflow is unreachable or no production version is registered.
         """
-        url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/model-versions/search"
-        response = requests.get(url, params={"filter": "name='aqi_forecaster_prod'"}, timeout=3.0)
+        # Use the dedicated alias endpoint to resolve the champion version
+        url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/registered-models/alias"
+        response = requests.get(url, params={"name": "aqi_forecaster_prod", "alias": "champion"}, timeout=5.0)
+        
         if response.status_code != 200:
-            raise Exception(f"MLflow service error: search model versions returned {response.status_code}")
+            raise Exception(f"No model with alias 'champion' found in MLflow registry (status {response.status_code})")
         
-        data = response.json()
-        versions = data.get("model_versions", [])
-        for v in versions:
-            aliases = v.get("aliases", [])
-            if "champion" in aliases:
-                # Fetch run info to find the algorithm
-                run_id = v.get("run_id")
-                algorithm = "RandomForest"  # default
-                if run_id:
-                    try:
-                        run_url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/runs/get"
-                        run_resp = requests.get(run_url, params={"run_id": run_id}, timeout=2.0)
-                        if run_resp.status_code == 200:
-                            params_list = run_resp.json().get("run", {}).get("data", {}).get("params", [])
-                            for p in params_list:
-                                if p.get("key") == "algorithm":
-                                    algorithm = p.get("value")
-                                    break
-                    except Exception as e:
-                        logger.warning(f"Failed to fetch run details for production algorithm name: {e}")
-                
-                return {
-                    "name": "aqi_forecaster_prod",
-                    "version": v.get("version"),
-                    "stage": "Production",
-                    "algorithm": algorithm,
-                    "run_id": run_id
-                }
+        v = response.json().get("model_version", {})
+        run_id = v.get("run_id")
+        algorithm = "RandomForest"  # default
+        if run_id:
+            try:
+                run_url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/runs/get"
+                run_resp = requests.get(run_url, params={"run_id": run_id}, timeout=2.0)
+                if run_resp.status_code == 200:
+                    params_list = run_resp.json().get("run", {}).get("data", {}).get("params", [])
+                    for p in params_list:
+                        if p.get("key") == "algorithm":
+                            algorithm = p.get("value")
+                            break
+            except Exception as e:
+                logger.warning(f"Failed to fetch run details for production algorithm name: {e}")
         
-        raise Exception("No model currently registered in 'Production' stage inside MLflow registry.")
+        return {
+            "name": "aqi_forecaster_prod",
+            "version": v.get("version"),
+            "stage": "Production",
+            "algorithm": algorithm,
+            "run_id": run_id
+        }
 
     @staticmethod
     def get_validation_rmse(run_id: str):
@@ -161,12 +157,29 @@ class MlflowService:
         production_ver = None
         staging_ver = None
         
+        # Resolve alias -> version mappings via the dedicated alias endpoint
+        # (DagsHub's model-versions/search does NOT include aliases in the response)
+        alias_url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/registered-models/alias"
+        champion_version = None
+        challenger_version = None
+        try:
+            r = requests.get(alias_url, params={"name": model_name, "alias": "champion"}, timeout=3.0)
+            if r.status_code == 200:
+                champion_version = r.json().get("model_version", {}).get("version")
+        except Exception:
+            pass
+        try:
+            r = requests.get(alias_url, params={"name": model_name, "alias": "challenger"}, timeout=3.0)
+            if r.status_code == 200:
+                challenger_version = r.json().get("model_version", {}).get("version")
+        except Exception:
+            pass
+        
         for v in versions_data:
             version_num = v.get("version")
-            aliases = v.get("aliases", [])
-            if "champion" in aliases:
+            if version_num == champion_version:
                 stage = "Production"
-            elif "challenger" in aliases:
+            elif version_num == challenger_version:
                 stage = "Staging"
             else:
                 stage = "None"
