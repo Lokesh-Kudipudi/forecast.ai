@@ -128,7 +128,7 @@ class MlflowService:
             hour_features[1] -= float(np.sin(i * np.pi / 12) * 10.0) # Humidity variation
             
             # Predict
-            pred = model.predict(hour_features)
+            pred = model.predict(hour_features.reshape(1, -1))
             hourly_preds.append(float(pred[0]))
         return hourly_preds
 
