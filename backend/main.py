@@ -358,8 +358,8 @@ def get_overview_summary():
                         rmse=round(overall_rmse, 2)
                     )
                     loaded_real_data = True
-        except Exception:
-            pass
+        except Exception as e:
+            logging.exception(f"Error loading real data from prediction_vs_actual.csv: {e}")
             
     if not loaded_real_data:
         now = datetime.datetime.now(datetime.UTC)
