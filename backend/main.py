@@ -1,8 +1,28 @@
 import datetime
+import os
+import logging
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# Configure persistent logging for MLOps audit trails
+log_dir = "/var/log/forecast_ai"
+log_file = os.path.join(log_dir, "app.log")
+handlers = [logging.StreamHandler()] # Console logging stdout fallback
+
+try:
+    if os.path.exists(log_dir) or os.access(os.path.dirname(log_file) or ".", os.W_OK):
+        os.makedirs(log_dir, exist_ok=True)
+        handlers.append(logging.FileHandler(log_file))
+except Exception as e:
+    print(f"File logging handler registration skipped: {e}")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=handlers
+)
 
 from services.mlflow_service import MlflowService
 from services.airflow_service import AirflowService

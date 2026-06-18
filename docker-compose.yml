@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # 1. Postgres Database for Airflow Metadata
+  airflow-db:
+    image: postgres:13-alpine
+    container_name: forecast_airflow_db
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # 2. Database Initializer for Airflow
+  airflow-init:
+    image: apache/airflow:2.7.2-python3.11
+    container_name: forecast_airflow_init
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+    command: >
+      bash -c "airflow db init && airflow users create --username admin --password admin --firstname Admin --lastname Admin --role Admin --email admin@example.com"
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+
+  # 3. Airflow Webserver
+  airflow-webserver:
+    image: apache/airflow:2.7.2-python3.11
+    container_name: forecast_airflow_webserver
+    command: webserver
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+    volumes:
+      - ./backend/dags:/opt/airflow/dags
+      - ./backend/data:/opt/airflow/data
+      - ./backend/scripts:/opt/airflow/scripts
+      - ./backend/services:/opt/airflow/services
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+    restart: always
+
+  # 4. Airflow Scheduler
+  airflow-scheduler:
+    image: apache/airflow:2.7.2-python3.11
+    container_name: forecast_airflow_scheduler
+    command: scheduler
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+    volumes:
+      - ./backend/dags:/opt/airflow/dags
+      - ./backend/data:/opt/airflow/data
+      - ./backend/scripts:/opt/airflow/scripts
+      - ./backend/services:/opt/airflow/services
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+    restart: always
+
+  # 5. FastAPI Backend
+  backend:
+    build: ./backend
+    container_name: forecast_backend
+    environment:
+      FORECAST_AI_AIRFLOW_DB_URL: postgresql://airflow:airflow@airflow-db:5432/airflow
+      FORECAST_AI_MLFLOW_TRACKING_URI: ${FORECAST_AI_MLFLOW_TRACKING_URI:-http://localhost:5000}
+      FORECAST_AI_PROMETHEUS_URL: http://prometheus:9090
+      FORECAST_AI_HISTORICAL_DATA_PATH: data/historical_aqi.csv
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
+      DAGSHUB_USERNAME: ${DAGSHUB_USERNAME}
+      DAGSHUB_TOKEN: ${DAGSHUB_TOKEN}
+    volumes:
+      - app_logs:/var/log/forecast_ai
+    depends_on:
+      - airflow-db
+    restart: always
+
+  # 6. Nginx Frontend
+  frontend:
+    build: ./frontend
+    container_name: forecast_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+
+  # 7. Prometheus Metrics Scraper
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: forecast_prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: always
+
+  # 8. Grafana Dashboard Visualizer
+  grafana:
+    image: grafana/grafana:10.0.3
+    container_name: forecast_grafana
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    restart: always
+
+volumes:
+  postgres_data:
+  app_logs:
