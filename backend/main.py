@@ -2,7 +2,7 @@ import datetime
 import os
 import logging
 import time
-from typing import List, Optional
+from typing import List, Optional, Dict
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -130,7 +130,7 @@ class OverviewSummary(BaseModel):
     validationRmse: MetricValue
     latencyP95Ms: MetricValue
     drift: DriftSummary
-    forecastVsActual: ForecastVsActual
+    forecastVsActual: Dict[str, ForecastVsActual]
     dagHealth: List[DagSummary]
     citySnapshot: List[CitySnapshot]
 
@@ -288,9 +288,8 @@ def get_overview_summary():
     dag_health = AirflowService.get_dag_health()
     
     # 5. Dynamic hours for actual vs forecast comparison
-    forecast_points = []
-    actual_points = []
-    rmse = 1.15
+    forecast_vs_actual_by_city = {}
+    cities_list = ["Rajahmundry", "Tada", "Chennai"]
     
     base_dir = os.path.dirname(settings.historical_data_path) if os.path.dirname(settings.historical_data_path) else "data"
     pv_path = os.path.join(base_dir, "prediction_vs_actual.csv")
@@ -311,30 +310,74 @@ def get_overview_summary():
                 if len(df) > 0:
                     df["time_str"] = df["dt"].dt.strftime("%H:00")
                     df["hour_floor"] = df["dt"].dt.floor("h")
-                    grouped = df.groupby(["hour_floor", "time_str"]).agg({
+                    
+                    # Generate city-specific points
+                    for city in cities_list:
+                        city_df = df[df["city"] == city]
+                        city_forecast = []
+                        city_actual = []
+                        city_rmse = 0.0
+                        
+                        if len(city_df) > 0:
+                            city_grouped = city_df.groupby(["hour_floor", "time_str"]).agg({
+                                "predicted_aqi": "mean",
+                                "actual_aqi": "mean"
+                            }).reset_index().sort_values(by="hour_floor")
+                            
+                            for _, row in city_grouped.iterrows():
+                                city_forecast.append(TimeseriesPoint(t=row["time_str"], value=round(float(row["predicted_aqi"]), 1)))
+                                city_actual.append(TimeseriesPoint(t=row["time_str"], value=round(float(row["actual_aqi"]), 1)))
+                            
+                            squared_errors = (city_df["predicted_aqi"] - city_df["actual_aqi"]) ** 2
+                            city_rmse = float(np.sqrt(squared_errors.mean()))
+                            
+                        forecast_vs_actual_by_city[city] = ForecastVsActual(
+                            forecast=city_forecast,
+                            actual=city_actual,
+                            rmse=round(city_rmse, 2)
+                        )
+                        
+                    # Generate overall average points (key "All")
+                    overall_forecast = []
+                    overall_actual = []
+                    overall_grouped = df.groupby(["hour_floor", "time_str"]).agg({
                         "predicted_aqi": "mean",
                         "actual_aqi": "mean"
                     }).reset_index().sort_values(by="hour_floor")
                     
-                    for _, row in grouped.iterrows():
-                        forecast_points.append(TimeseriesPoint(t=row["time_str"], value=round(float(row["predicted_aqi"]), 1)))
-                        actual_points.append(TimeseriesPoint(t=row["time_str"], value=round(float(row["actual_aqi"]), 1)))
-                    
+                    for _, row in overall_grouped.iterrows():
+                        overall_forecast.append(TimeseriesPoint(t=row["time_str"], value=round(float(row["predicted_aqi"]), 1)))
+                        overall_actual.append(TimeseriesPoint(t=row["time_str"], value=round(float(row["actual_aqi"]), 1)))
+                        
                     squared_errors = (df["predicted_aqi"] - df["actual_aqi"]) ** 2
-                    rmse = float(np.sqrt(squared_errors.mean()))
+                    overall_rmse = float(np.sqrt(squared_errors.mean()))
+                    
+                    forecast_vs_actual_by_city["All"] = ForecastVsActual(
+                        forecast=overall_forecast,
+                        actual=overall_actual,
+                        rmse=round(overall_rmse, 2)
+                    )
                     loaded_real_data = True
         except Exception:
             pass
             
     if not loaded_real_data:
         now = datetime.datetime.now(datetime.UTC)
-        forecast_points = []
-        actual_points = []
-        for i in range(24):
-            time_str = (now - datetime.timedelta(hours=24-i)).strftime("%H:00")
-            forecast_points.append(TimeseriesPoint(t=time_str, value=float(100 + (i * 2) % 30)))
-            actual_points.append(TimeseriesPoint(t=time_str, value=float(102 + (i * 2) % 30 + (i % 3 - 1) * 2)))
-        rmse = 1.15
+        city_offsets = {"Rajahmundry": 0, "Tada": -15, "Chennai": 10, "All": 0}
+        for city in cities_list + ["All"]:
+            forecast_points = []
+            actual_points = []
+            offset = city_offsets[city]
+            for i in range(24):
+                time_str = (now - datetime.timedelta(hours=24-i)).strftime("%H:00")
+                forecast_points.append(TimeseriesPoint(t=time_str, value=float(max(10, 100 + offset + (i * 2) % 30))))
+                actual_points.append(TimeseriesPoint(t=time_str, value=float(max(10, 102 + offset + (i * 2) % 30 + (i % 3 - 1) * 2))))
+            
+            forecast_vs_actual_by_city[city] = ForecastVsActual(
+                forecast=forecast_points,
+                actual=actual_points,
+                rmse=1.15
+            )
 
     # Tracked Cities snap
     city_snapshots = get_cities()
@@ -367,11 +410,7 @@ def get_overview_summary():
             total=total_drift_features,
             worstFeature=worst_feature
         ),
-        forecastVsActual=ForecastVsActual(
-            forecast=forecast_points,
-            actual=actual_points,
-            rmse=rmse
-        ),
+        forecastVsActual=forecast_vs_actual_by_city,
         dagHealth=[
             DagSummary(
                 dag=d["dag"],

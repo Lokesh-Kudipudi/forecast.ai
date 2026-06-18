@@ -19,7 +19,7 @@ export interface OverviewSummary {
   validationRmse: { value: number; trend: TrendDelta };
   latencyP95Ms: { value: number; trend: TrendDelta };
   drift: { driftingCount: number; total: number; worstFeature: string | null };
-  forecastVsActual: { forecast: TimeseriesPoint[]; actual: TimeseriesPoint[]; rmse: number };
+  forecastVsActual: Record<string, { forecast: TimeseriesPoint[]; actual: TimeseriesPoint[]; rmse: number }>;
   dagHealth: DagSummary[];
   citySnapshot: CitySnapshot[];
 }

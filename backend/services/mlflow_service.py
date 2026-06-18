@@ -3,7 +3,11 @@ import datetime
 import os
 import requests as raw_requests
 import numpy as np
+import warnings
 from core.config import settings
+
+warnings.filterwarnings("ignore")
+logging.getLogger("mlflow").setLevel(logging.ERROR)
 
 class AuthenticatedRequests:
     @staticmethod

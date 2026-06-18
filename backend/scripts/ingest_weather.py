@@ -3,6 +3,11 @@ import datetime
 import requests
 import pandas as pd
 import numpy as np
+import warnings
+import logging
+
+warnings.filterwarnings("ignore")
+logging.getLogger("mlflow").setLevel(logging.ERROR)
 
 # Coordinates for default cities
 CITY_COORDINATES = {

@@ -31,6 +31,7 @@ export interface LineChartCardProps {
   xAxisKey?: string;
   series: ChartSeries[];
   footer?: ReactNode;
+  headerAction?: ReactNode;
   height?: number;
   className?: string;
 }
@@ -42,6 +43,7 @@ export function LineChartCard({
   xAxisKey = 't',
   series,
   footer,
+  headerAction,
   height = 220,
   className,
 }: LineChartCardProps) {
@@ -52,7 +54,7 @@ export function LineChartCard({
           <h3 className="font-sans text-[14px] font-semibold text-text">{title}</h3>
           {subtitle ? <p className="font-sans text-[12px] text-text-muted">{subtitle}</p> : null}
         </div>
-        {footer ? <div className="text-[12px]">{footer}</div> : null}
+        {headerAction ? <div className="flex items-center">{headerAction}</div> : null}
       </CardHeader>
 
       <div style={{ width: '100%', height }}>
@@ -112,6 +114,7 @@ export function LineChartCard({
           </AreaChart>
         </ResponsiveContainer>
       </div>
+      {footer ? <div className="mt-4 pt-3 border-t border-border/60 text-[12px]">{footer}</div> : null}
     </Card>
   );
 }

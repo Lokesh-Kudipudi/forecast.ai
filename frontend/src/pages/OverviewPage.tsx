@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useOverviewSummary } from '../hooks/useOverview';
 import { StatCard } from '../components/ui/StatCard';
@@ -13,6 +14,7 @@ import { RefreshCw, AlertCircle } from 'lucide-react';
 
 export default function OverviewPage() {
   const { data, isLoading, isError, isFetching, error, refetch } = useOverviewSummary();
+  const [selectedCity, setSelectedCity] = useState<'All' | 'Rajahmundry' | 'Tada' | 'Chennai'>('All');
 
   const handleRefresh = () => {
     refetch();
@@ -69,9 +71,11 @@ export default function OverviewPage() {
     );
   }
 
+  const activeForecast = data.forecastVsActual[selectedCity] || data.forecastVsActual['All'];
+
   // Map stats for Recharts LineChartCard
-  const chartData = data.forecastVsActual.forecast.map((pt, index) => {
-    const actualPoint = data.forecastVsActual.actual[index];
+  const chartData = activeForecast.forecast.map((pt, index) => {
+    const actualPoint = activeForecast.actual[index];
     return {
       t: pt.t,
       forecast: pt.value,
@@ -222,10 +226,27 @@ export default function OverviewPage() {
           data={chartData}
           series={chartSeries}
           className="lg:col-span-2"
+          headerAction={
+            <div className="flex items-center gap-1 rounded-lg bg-surface-muted p-1 border border-border/80">
+              {(['All', 'Rajahmundry', 'Tada', 'Chennai'] as const).map((city) => (
+                <button
+                  key={city}
+                  onClick={() => setSelectedCity(city)}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all ${
+                    selectedCity === city
+                      ? 'bg-surface text-text shadow-sm border border-border-strong/50'
+                      : 'text-text-muted hover:text-text hover:bg-surface/30 border border-transparent'
+                  }`}
+                >
+                  {city === 'All' ? 'System Avg' : city}
+                </button>
+              ))}
+            </div>
+          }
           footer={
             <div className="flex items-center gap-3">
               <span className="text-[12px] text-text-muted">
-                Validation RMSE: <strong className="font-mono text-text">{formatNumber(data.forecastVsActual.rmse, 2)}</strong>
+                Validation RMSE: <strong className="font-mono text-text">{formatNumber(activeForecast.rmse, 2)}</strong>
               </span>
             </div>
           }
