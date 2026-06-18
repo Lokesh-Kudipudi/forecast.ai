@@ -1,6 +1,4 @@
 import os
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
 import subprocess
 import numpy as np
 import pandas as pd
@@ -105,7 +103,7 @@ def run_retraining_pipeline():
         prod_ver = None
         for v in latest_versions:
             aliases = getattr(v, "aliases", [])
-            if "champion" in aliases or v.current_stage == "Production":
+            if "champion" in aliases:
                 prod_ver = v
                 break
         if prod_ver:
@@ -163,17 +161,7 @@ def run_retraining_pipeline():
                 pass
             mv = client.create_model_version(name="aqi_forecaster_prod", source=model_uri, run_id=run_id)
             
-            # Promote to Production (legacy stage + modern alias)
-            try:
-                client.transition_model_version_stage(
-                    name="aqi_forecaster_prod",
-                    version=mv.version,
-                    stage="Production",
-                    archive_existing_versions=True
-                )
-            except Exception as e:
-                print(f"Stage transition warning: {e}")
-            
+            # Promote to Production (modern alias)
             try:
                 client.set_registered_model_alias(
                     name="aqi_forecaster_prod",
@@ -198,16 +186,7 @@ def run_retraining_pipeline():
                 pass
             mv = client.create_model_version(name="aqi_forecaster_prod", source=model_uri, run_id=run_id)
             
-            # Transition to Staging (legacy stage + modern alias)
-            try:
-                client.transition_model_version_stage(
-                    name="aqi_forecaster_prod",
-                    version=mv.version,
-                    stage="Staging"
-                )
-            except Exception as e:
-                print(f"Stage transition warning: {e}")
-                
+            # Transition to Staging (modern alias)
             try:
                 client.set_registered_model_alias(
                     name="aqi_forecaster_prod",
