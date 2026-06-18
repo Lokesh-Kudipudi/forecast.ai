@@ -121,14 +121,22 @@ class MlflowService:
         
         hourly_preds = []
         base_features = np.array(features)
+        import pandas as pd
         for i in range(24):
             # Simulate diurnal cycle variation (temperature peaks midday, humidity peaks morning)
-            hour_features = base_features.copy()
-            hour_features[0] += float(np.sin(i * np.pi / 12) * 5.0)  # Temperature variation
-            hour_features[1] -= float(np.sin(i * np.pi / 12) * 10.0) # Humidity variation
+            temp = base_features[0] + float(np.sin(i * np.pi / 12) * 5.0)
+            hum = base_features[1] - float(np.sin(i * np.pi / 12) * 10.0)
+            wind = base_features[2]
+            pm25 = base_features[3]
             
-            # Predict
-            pred = model.predict(hour_features.reshape(1, -1))
+            df_features = pd.DataFrame([{
+                "temperature": temp,
+                "humidity": hum,
+                "wind_speed": wind,
+                "pm25_historical": pm25
+            }])
+            
+            pred = model.predict(df_features)
             hourly_preds.append(float(pred[0]))
         return hourly_preds
 

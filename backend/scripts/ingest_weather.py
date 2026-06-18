@@ -113,9 +113,14 @@ def make_prediction(city, t, h, w, pm25):
         model_uri = f"models:/aqi_forecaster_prod/{version}"
         model = mlflow.pyfunc.load_model(model_uri)
         
-        features_list = [t, h, w, pm25]
-        import numpy as np
-        pred = model.predict(np.array(features_list).reshape(1, -1))
+        import pandas as pd
+        df_features = pd.DataFrame([{
+            "temperature": t,
+            "humidity": h,
+            "wind_speed": w,
+            "pm25_historical": pm25
+        }])
+        pred = model.predict(df_features)
         return float(pred[0])
     except Exception as e:
         print(f"[{city}] Failed to fetch prediction from MLflow model: {e}. Falling back to baseline prediction.")
