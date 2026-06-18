@@ -10,7 +10,13 @@ import mlflow
 from mlflow.tracking import MlflowClient
 
 # Path configuration
-DATA_PATH = "data/historical_aqi.csv"
+DATA_PATH = os.getenv("FORECAST_AI_HISTORICAL_DATA_PATH")
+if not DATA_PATH:
+    if os.path.exists("backend/data/historical_aqi.csv"):
+        DATA_PATH = "backend/data/historical_aqi.csv"
+    else:
+        DATA_PATH = "data/historical_aqi.csv"
+
 MLFLOW_URI = os.getenv("FORECAST_AI_MLFLOW_TRACKING_URI", "http://localhost:5000")
 
 def pull_data_from_dvc():

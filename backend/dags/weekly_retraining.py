@@ -24,7 +24,7 @@ with DAG(
     # Task to trigger the scikit-learn training and validation run script
     retrain_and_validate = BashOperator(
         task_id="retrain_and_validate_model",
-        bash_command="cd /opt/airflow && python scripts/validate_model.py",
+        bash_command="git config --global --add safe.directory /opt/airflow/project && cd /opt/airflow/project && python backend/scripts/validate_model.py",
     )
 
     retrain_and_validate
