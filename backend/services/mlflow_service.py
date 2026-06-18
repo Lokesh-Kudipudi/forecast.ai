@@ -33,10 +33,10 @@ class MlflowService:
         Queries MLflow to get the current production model version and metadata.
         Raises an exception if MLflow is unreachable or no production version is registered.
         """
-        url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/registered-models/get-latest-versions"
-        response = requests.get(url, params={"name": "aqi_forecaster_prod"}, timeout=3.0)
+        url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/model-versions/search"
+        response = requests.get(url, params={"filter": "name='aqi_forecaster_prod'"}, timeout=3.0)
         if response.status_code != 200:
-            raise Exception(f"MLflow service error: search latest versions returned {response.status_code}")
+            raise Exception(f"MLflow service error: search model versions returned {response.status_code}")
         
         data = response.json()
         versions = data.get("model_versions", [])
