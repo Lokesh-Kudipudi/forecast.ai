@@ -97,12 +97,14 @@ def run_retraining_pipeline():
     # 4. Fetch current active Production model RMSE
     client = MlflowClient()
     prod_rmse = 15.67  # Default fallback if registry empty
+    has_production_model = False
     try:
         latest_versions = client.get_latest_versions("aqi_forecaster_prod")
         prod_ver = next((v for v in latest_versions if v.current_stage == "Production"), None)
         if prod_ver:
             prod_run = client.get_run(prod_ver.run_id)
             prod_rmse = prod_run.data.metrics.get("improved_rmse", prod_run.data.metrics.get("rmse", 15.67))
+            has_production_model = True
             print(f"Current active Production model version: v{prod_ver.version} (RMSE: {prod_rmse:.4f})")
     except Exception as e:
         print(f"No active Production version found in MLflow registry: {e}")
@@ -142,7 +144,7 @@ def run_retraining_pipeline():
         mlflow.sklearn.log_model(improved_model, "model")
         
         # Promotion decision
-        if meets_baseline_target and beats_production:
+        if (meets_baseline_target and beats_production) or not has_production_model:
             result_notes = f"Promoted automatically to Production (RMSE: {improved_rmse:.2f} vs Prod: {prod_rmse:.2f}, Baseline improvement: {improvement_vs_baseline:.2f}%)."
             print(result_notes)
             
