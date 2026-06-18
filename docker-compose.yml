@@ -43,6 +43,12 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
+      DAGSHUB_USERNAME: ${DAGSHUB_USERNAME}
+      DAGSHUB_TOKEN: ${DAGSHUB_TOKEN}
+      FORECAST_AI_MLFLOW_TRACKING_URI: ${FORECAST_AI_MLFLOW_TRACKING_URI:-http://localhost:5000}
+      MLFLOW_TRACKING_USERNAME: ${DAGSHUB_USERNAME}
+      MLFLOW_TRACKING_PASSWORD: ${DAGSHUB_TOKEN}
     volumes:
       - ./backend/dags:/opt/airflow/dags
       - ./backend/data:/opt/airflow/data
@@ -64,6 +70,12 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
+      DAGSHUB_USERNAME: ${DAGSHUB_USERNAME}
+      DAGSHUB_TOKEN: ${DAGSHUB_TOKEN}
+      FORECAST_AI_MLFLOW_TRACKING_URI: ${FORECAST_AI_MLFLOW_TRACKING_URI:-http://localhost:5000}
+      MLFLOW_TRACKING_USERNAME: ${DAGSHUB_USERNAME}
+      MLFLOW_TRACKING_PASSWORD: ${DAGSHUB_TOKEN}
     volumes:
       - ./backend/dags:/opt/airflow/dags
       - ./backend/data:/opt/airflow/data
