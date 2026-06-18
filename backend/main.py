@@ -301,7 +301,7 @@ def get_overview_summary():
             import numpy as np
             df = pd.read_csv(pv_path)
             if len(df) > 0:
-                df["dt"] = pd.to_datetime(df["timestamp"], utc=True)
+                df["dt"] = pd.to_datetime(df["timestamp"], utc=True, format='ISO8601')
                 df = df.sort_values(by="dt")
                 
                 limit_time = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=24)

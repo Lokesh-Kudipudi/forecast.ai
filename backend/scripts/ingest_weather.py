@@ -165,7 +165,7 @@ def log_prediction_vs_actual(records, file_path="data/prediction_vs_actual.csv")
     combined_df = combined_df.drop_duplicates(subset=["timestamp", "city"])
     
     try:
-        combined_df["timestamp"] = pd.to_datetime(combined_df["timestamp"], utc=True)
+        combined_df["timestamp"] = pd.to_datetime(combined_df["timestamp"], utc=True, format='ISO8601')
         combined_df = combined_df.sort_values(by="timestamp", ascending=True)
         
         limit_time = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=24)
