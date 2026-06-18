@@ -41,7 +41,9 @@ class MlflowService:
         data = response.json()
         versions = data.get("model_versions", [])
         for v in versions:
-            if v.get("current_stage") == "Production":
+            aliases = v.get("aliases", [])
+            is_prod = "champion" in aliases or v.get("current_stage") == "Production"
+            if is_prod:
                 # Fetch run info to find the algorithm
                 run_id = v.get("run_id")
                 algorithm = "RandomForest"  # default
@@ -117,7 +119,9 @@ class MlflowService:
         """
         import mlflow
         mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
-        model_uri = "models:/aqi_forecaster_prod/Production"
+        prod_info = MlflowService.get_production_model()
+        version = prod_info["version"]
+        model_uri = f"models:/aqi_forecaster_prod/{version}"
         model = mlflow.pyfunc.load_model(model_uri)
         
         hourly_preds = []
@@ -161,6 +165,11 @@ class MlflowService:
         for v in versions_data:
             version_num = v.get("version")
             stage = v.get("current_stage")
+            aliases = v.get("aliases", [])
+            if "champion" in aliases:
+                stage = "Production"
+            elif "challenger" in aliases:
+                stage = "Staging"
             run_id = v.get("run_id")
             creation_time_ms = int(v.get("creation_timestamp", 0))
             registered_at = datetime.datetime.fromtimestamp(creation_time_ms / 1000.0, datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -293,20 +302,49 @@ class MlflowService:
     @staticmethod
     def transition_model_stage(model_name: str, version: str, stage: str = "Production"):
         """
-        Transitions a model version to the specified stage in MLflow.
-        If stage is Production, it transitions and archives previous versions.
+        Transitions a model version to the specified stage in MLflow and assigns aliases.
+        If stage is Production, it transitions and archives previous versions, and assigns 'champion'.
         Raises an exception on failure.
         """
-        url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/model-versions/transition-stage"
-        payload = {
-            "name": model_name,
-            "version": version,
-            "stage": stage,
-            "archive_existing_versions": True if stage == "Production" else False
-        }
-        response = requests.post(url, json=payload, timeout=4.0)
-        if response.status_code != 200:
-            raise Exception(f"MLflow service error: transition stage returned status {response.status_code}")
+        stage_ok = False
+        alias_ok = False
+        
+        # 1. Transition Stage (Legacy)
+        try:
+            url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/model-versions/transition-stage"
+            payload = {
+                "name": model_name,
+                "version": version,
+                "stage": stage,
+                "archive_existing_versions": True if stage == "Production" else False
+            }
+            response = requests.post(url, json=payload, timeout=4.0)
+            if response.status_code == 200:
+                stage_ok = True
+            else:
+                logger.warning(f"Legacy transition-stage API returned {response.status_code}: {response.text}")
+        except Exception as e:
+            logger.warning(f"Failed legacy transition stage call: {e}")
+            
+        # 2. Set Model Alias (Modern)
+        alias = "champion" if stage == "Production" else "challenger"
+        try:
+            alias_url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/registered-models/alias"
+            alias_payload = {
+                "name": model_name,
+                "alias": alias,
+                "version": version
+            }
+            response = requests.post(alias_url, json=alias_payload, timeout=4.0)
+            if response.status_code == 200:
+                alias_ok = True
+            else:
+                logger.warning(f"Modern alias API returned {response.status_code}: {response.text}")
+        except Exception as e:
+            logger.warning(f"Failed modern set alias call: {e}")
+            
+        if not stage_ok and not alias_ok:
+            raise Exception("MLflow service error: both transition stage and alias setting failed.")
             
         try:
             ver_url = f"{settings.mlflow_tracking_uri}/api/2.0/mlflow/model-versions/get"

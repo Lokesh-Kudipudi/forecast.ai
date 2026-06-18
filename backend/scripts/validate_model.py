@@ -100,7 +100,12 @@ def run_retraining_pipeline():
     has_production_model = False
     try:
         latest_versions = client.search_model_versions(filter_string="name='aqi_forecaster_prod'")
-        prod_ver = next((v for v in latest_versions if v.current_stage == "Production"), None)
+        prod_ver = None
+        for v in latest_versions:
+            aliases = getattr(v, "aliases", [])
+            if "champion" in aliases or v.current_stage == "Production":
+                prod_ver = v
+                break
         if prod_ver:
             prod_run = client.get_run(prod_ver.run_id)
             prod_rmse = prod_run.data.metrics.get("improved_rmse", prod_run.data.metrics.get("rmse", 15.67))
@@ -156,13 +161,25 @@ def run_retraining_pipeline():
                 pass
             mv = client.create_model_version(name="aqi_forecaster_prod", source=model_uri, run_id=run_id)
             
-            # Promote to Production (archives previous)
-            client.transition_model_version_stage(
-                name="aqi_forecaster_prod",
-                version=mv.version,
-                stage="Production",
-                archive_existing_versions=True
-            )
+            # Promote to Production (legacy stage + modern alias)
+            try:
+                client.transition_model_version_stage(
+                    name="aqi_forecaster_prod",
+                    version=mv.version,
+                    stage="Production",
+                    archive_existing_versions=True
+                )
+            except Exception as e:
+                print(f"Stage transition warning: {e}")
+            
+            try:
+                client.set_registered_model_alias(
+                    name="aqi_forecaster_prod",
+                    alias="champion",
+                    version=mv.version
+                )
+            except Exception as e:
+                print(f"Alias assignment warning: {e}")
             
             # Tag run details
             client.set_tag(run_id, "result", result_notes)
@@ -179,12 +196,24 @@ def run_retraining_pipeline():
                 pass
             mv = client.create_model_version(name="aqi_forecaster_prod", source=model_uri, run_id=run_id)
             
-            # Transition to Staging
-            client.transition_model_version_stage(
-                name="aqi_forecaster_prod",
-                version=mv.version,
-                stage="Staging"
-            )
+            # Transition to Staging (legacy stage + modern alias)
+            try:
+                client.transition_model_version_stage(
+                    name="aqi_forecaster_prod",
+                    version=mv.version,
+                    stage="Staging"
+                )
+            except Exception as e:
+                print(f"Stage transition warning: {e}")
+                
+            try:
+                client.set_registered_model_alias(
+                    name="aqi_forecaster_prod",
+                    alias="challenger",
+                    version=mv.version
+                )
+            except Exception as e:
+                print(f"Alias assignment warning: {e}")
             
             # Tag run details
             client.set_tag(run_id, "result", result_notes)
