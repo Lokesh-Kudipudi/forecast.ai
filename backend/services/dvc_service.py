@@ -13,13 +13,18 @@ class DvcService:
         to track dataset versions dynamically without mock database fallbacks.
         """
         dvc_file_relative = "backend/data/historical_aqi.csv.dvc"
-        # Project root is two levels up from this file's directory
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+        # Detect if running in a container with /opt/project mapped
+        if os.path.exists("/opt/project/.git"):
+            project_root = "/opt/project"
+        else:
+            # Fallback for local/non-docker development
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
         
         try:
             # Retrieve Git commit history for the DVC pointer file
             # Format: commit_hash|commit_date_iso|commit_subject
-            cmd = ["git", "log", "--follow", "--format=%H|%cI|%s", "--", dvc_file_relative]
+            # Pass safe.directory configuration dynamically to prevent ownership errors in Docker
+            cmd = ["git", "-c", "safe.directory=*", "log", "--follow", "--format=%H|%cI|%s", "--", dvc_file_relative]
             res = subprocess.run(cmd, cwd=project_root, capture_output=True, text=True, check=True)
             log_lines = res.stdout.strip().split("\n")
             
@@ -34,7 +39,7 @@ class DvcService:
                 commit_date = parts[1]
                 
                 # Fetch DVC file contents at this specific git commit
-                show_cmd = ["git", "show", f"{commit_hash}:{dvc_file_relative}"]
+                show_cmd = ["git", "-c", "safe.directory=*", "show", f"{commit_hash}:{dvc_file_relative}"]
                 show_res = subprocess.run(show_cmd, cwd=project_root, capture_output=True, text=True, check=True)
                 dvc_content = show_res.stdout
                 
