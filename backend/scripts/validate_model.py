@@ -152,7 +152,7 @@ def run_retraining_pipeline():
         mlflow.set_tag("dvc.version", dvc_ver)
         
         # Log model artifact
-        mlflow.sklearn.log_model(improved_model, "model")
+        model_info = mlflow.sklearn.log_model(improved_model, "model")
         
         # Promotion decision
         if (meets_baseline_target and beats_production) or not has_production_model:
@@ -160,7 +160,7 @@ def run_retraining_pipeline():
             print(result_notes)
             
             # Register version via direct MlflowClient calls to bypass fluent API validation errors
-            model_uri = f"runs:/{run_id}/model"
+            model_uri = model_info.model_uri
             try:
                 client.create_registered_model("aqi_forecaster_prod")
             except Exception:
@@ -185,7 +185,7 @@ def run_retraining_pipeline():
             print(result_notes)
             
             # Register version via direct MlflowClient calls to bypass fluent API validation errors
-            model_uri = f"runs:/{run_id}/model"
+            model_uri = model_info.model_uri
             try:
                 client.create_registered_model("aqi_forecaster_prod")
             except Exception:
