@@ -20,7 +20,9 @@ services:
 
   # 2. Database Initializer for Airflow
   airflow-init:
-    image: apache/airflow:2.7.2-python3.11
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.airflow
     container_name: forecast_airflow_init
     environment:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
@@ -32,7 +34,9 @@ services:
 
   # 3. Airflow Webserver
   airflow-webserver:
-    image: apache/airflow:2.7.2-python3.11
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.airflow
     container_name: forecast_airflow_webserver
     command: webserver
     ports:
@@ -53,7 +57,9 @@ services:
 
   # 4. Airflow Scheduler
   airflow-scheduler:
-    image: apache/airflow:2.7.2-python3.11
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.airflow
     container_name: forecast_airflow_scheduler
     command: scheduler
     environment:
@@ -84,6 +90,7 @@ services:
       DAGSHUB_TOKEN: ${DAGSHUB_TOKEN}
     volumes:
       - app_logs:/var/log/forecast_ai
+      - ./backend/data:/app/data
     depends_on:
       - airflow-db
     restart: always

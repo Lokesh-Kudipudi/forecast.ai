@@ -1,0 +1,12 @@
+# Custom Airflow image with uv and dvc support
+FROM apache/airflow:2.7.2-python3.11
+
+USER root
+# Install git (needed for DvcService git checks and parsing)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+USER airflow
+# Install uv and dvc in the airflow user's python environment
+RUN pip install --no-cache-dir uv dvc

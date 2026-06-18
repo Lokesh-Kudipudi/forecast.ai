@@ -24,14 +24,14 @@ with DAG(
     # Task to fetch live weather details and append to dataset
     fetch_metrics = BashOperator(
         task_id="fetch_weather_metrics",
-        bash_command="cd /Users/lokeshkudipudi/Coding/Projects/AI_ML/forecast_ai/backend && uv run python scripts/ingest_weather.py",
+        bash_command="cd /opt/airflow && python scripts/ingest_weather.py",
     )
 
     # Task to commit the new historical CSV to DVC tracking
     # (Typically triggers 'dvc add' and 'dvc push' or pushes git pointer updates)
     dvc_update = BashOperator(
         task_id="dvc_version_dataset",
-        bash_command="cd /Users/lokeshkudipudi/Coding/Projects/AI_ML/forecast_ai/backend && dvc add data/historical_aqi.csv",
+        bash_command="cd /opt/airflow && dvc add data/historical_aqi.csv",
     )
 
     fetch_metrics >> dvc_update
