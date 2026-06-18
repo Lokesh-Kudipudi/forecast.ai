@@ -1,4 +1,6 @@
 import os
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import subprocess
 import numpy as np
 import pandas as pd

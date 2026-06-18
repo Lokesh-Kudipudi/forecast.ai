@@ -1,4 +1,6 @@
 import logging
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import datetime
 import os
 import requests as raw_requests
