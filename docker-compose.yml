@@ -64,12 +64,16 @@ services:
       FORECAST_AI_MLFLOW_TRACKING_URI: ${FORECAST_AI_MLFLOW_TRACKING_URI:-http://localhost:5000}
       MLFLOW_TRACKING_USERNAME: ${DAGSHUB_USERNAME}
       MLFLOW_TRACKING_PASSWORD: ${DAGSHUB_TOKEN}
+      GIT_CONFIG_COUNT: 1
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: '*'
     volumes:
       - ./backend/dags:/opt/airflow/dags
       - ./backend/data:/opt/airflow/data
       - ./backend/scripts:/opt/airflow/scripts
       - ./backend/services:/opt/airflow/services
       - ./.dvc:/opt/airflow/.dvc
+      - ./.git:/opt/airflow/.git:ro
     depends_on:
       airflow-db:
         condition: service_healthy
@@ -95,12 +99,16 @@ services:
       FORECAST_AI_MLFLOW_TRACKING_URI: ${FORECAST_AI_MLFLOW_TRACKING_URI:-http://localhost:5000}
       MLFLOW_TRACKING_USERNAME: ${DAGSHUB_USERNAME}
       MLFLOW_TRACKING_PASSWORD: ${DAGSHUB_TOKEN}
+      GIT_CONFIG_COUNT: 1
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: '*'
     volumes:
       - ./backend/dags:/opt/airflow/dags
       - ./backend/data:/opt/airflow/data
       - ./backend/scripts:/opt/airflow/scripts
       - ./backend/services:/opt/airflow/services
       - ./.dvc:/opt/airflow/.dvc
+      - ./.git:/opt/airflow/.git:ro
     depends_on:
       airflow-db:
         condition: service_healthy
