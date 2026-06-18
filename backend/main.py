@@ -211,7 +211,15 @@ def get_overview_summary():
     mon_summary = PrometheusService.get_monitoring_summary()
     
     # 3. Fetch Drift metrics
-    drift_report = DriftService.calculate_drift()
+    try:
+        drift_report = DriftService.calculate_drift()
+        drifting_count = drift_report["driftingCount"]
+        total_drift_features = drift_report["total"]
+        worst_feature = drift_report["worst"]["feature"] if drift_report["worst"] else None
+    except ValueError:
+        drifting_count = 0
+        total_drift_features = 4
+        worst_feature = None
     
     # 4. Fetch DAG health from Airflow Postgres DB
     dag_health = AirflowService.get_dag_health()
@@ -252,9 +260,9 @@ def get_overview_summary():
             )
         ),
         drift=DriftSummary(
-            driftingCount=drift_report["driftingCount"],
-            total=drift_report["total"],
-            worstFeature=drift_report["worst"]["feature"] if drift_report["worst"] else None
+            driftingCount=drifting_count,
+            total=total_drift_features,
+            worstFeature=worst_feature
         ),
         forecastVsActual=ForecastVsActual(
             forecast=forecast_points,
@@ -379,36 +387,20 @@ def get_run_detail(runId: str):
 
 @app.get("/drift/latest", response_model=DriftReport)
 def get_drift_latest():
-    features = [
-        FeatureDrift(feature="temperature", pValue=0.48, verdict="ok"),
-        FeatureDrift(feature="humidity", pValue=0.22, verdict="ok"),
-        FeatureDrift(feature="wind_speed", pValue=0.08, verdict="borderline"),
-        FeatureDrift(feature="pm25_historical", pValue=0.015, verdict="drift")
-    ]
-    
-    # Generating mock distribution overlap points
-    training_dist = []
-    live_dist = []
-    for i in range(30):
-        val = float(i)
-        # Shift live distribution slightly to simulate drift
-        training_val = float(10 * (0.8 ** abs(i - 12)))
-        live_val = float(10 * (0.8 ** abs(i - 16)))
-        training_dist.append(TimeseriesPoint(t=str(val), value=training_val))
-        live_dist.append(TimeseriesPoint(t=str(val), value=live_val))
-        
-    worst_data = {
-        "feature": "pm25_historical",
-        "training": training_dist,
-        "live": live_dist
-    }
-    
-    return DriftReport(
-        features=features,
-        driftingCount=1,
-        total=4,
-        worst=worst_data
-    )
+    try:
+        report = DriftService.calculate_drift()
+        return DriftReport(
+            features=[FeatureDrift(**f) for f in report["features"]],
+            driftingCount=report["driftingCount"],
+            total=report["total"],
+            worst=report["worst"]
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/pipelines/dags", response_model=List[DagSummary])
 def get_pipelines_dags():
