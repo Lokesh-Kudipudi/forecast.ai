@@ -25,10 +25,10 @@ services:
     container_name: forecast_airflow_data_init
     user: "0:0"
     entrypoint: /bin/bash
-    command: -c "mkdir -p /opt/airflow/data /opt/airflow/.dvc && chown -R 50000:0 /opt/airflow/data /opt/airflow/.dvc && chmod -R g+rwX /opt/airflow/data /opt/airflow/.dvc"
+    command: -c "mkdir -p /opt/airflow/data /opt/airflow/project && chown -R 50000:0 /opt/airflow/data && chmod -R g+rwX /opt/airflow/data && chmod -R a+rwX /opt/airflow/project/.git /opt/airflow/project/.dvc /opt/airflow/project/backend/data"
     volumes:
       - ./backend/data:/opt/airflow/data
-      - ./.dvc:/opt/airflow/.dvc
+      - .:/opt/airflow/project
 
   # 2. Database Initializer for Airflow
   airflow-init:
@@ -72,8 +72,7 @@ services:
       - ./backend/data:/opt/airflow/data
       - ./backend/scripts:/opt/airflow/scripts
       - ./backend/services:/opt/airflow/services
-      - ./.dvc:/opt/airflow/.dvc
-      - ./.git:/opt/airflow/.git:ro
+      - .:/opt/airflow/project
     depends_on:
       airflow-db:
         condition: service_healthy
@@ -107,8 +106,7 @@ services:
       - ./backend/data:/opt/airflow/data
       - ./backend/scripts:/opt/airflow/scripts
       - ./backend/services:/opt/airflow/services
-      - ./.dvc:/opt/airflow/.dvc
-      - ./.git:/opt/airflow/.git:ro
+      - .:/opt/airflow/project
     depends_on:
       airflow-db:
         condition: service_healthy

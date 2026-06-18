@@ -23,10 +23,17 @@ with DAG(
 
     push_to_dagshub = BashOperator(
         task_id="dvc_push_to_remote",
-        bash_command="cd /opt/airflow && "
-                     "dvc remote modify myremote --local user \"$DAGSHUB_USERNAME\" && "
-                     "dvc remote modify myremote --local password \"$DAGSHUB_TOKEN\" && "
-                     "dvc push",
+        bash_command=(
+            "cd /opt/airflow/project && "
+            "dvc remote modify myremote --local user \"$DAGSHUB_USERNAME\" && "
+            "dvc remote modify myremote --local password \"$DAGSHUB_TOKEN\" && "
+            "dvc push && "
+            "git config user.name \"forecast_airflow\" && "
+            "git config user.email \"airflow@forecast.ai\" && "
+            "git add backend/data/historical_aqi.csv.dvc backend/data/.gitignore && "
+            "git commit -m \"chore: auto-update dataset pointers [skip ci]\" && "
+            "git push https://\"$DAGSHUB_USERNAME\":\"$DAGSHUB_TOKEN\"@dagshub.com/\"$DAGSHUB_USERNAME\"/forecast.ai.git main"
+        ),
     )
 
     push_to_dagshub

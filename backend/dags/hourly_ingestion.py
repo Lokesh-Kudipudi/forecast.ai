@@ -31,7 +31,7 @@ with DAG(
     # (Typically triggers 'dvc add' and 'dvc push' or pushes git pointer updates)
     dvc_update = BashOperator(
         task_id="dvc_version_dataset",
-        bash_command="cd /opt/airflow && dvc add data/historical_aqi.csv",
+        bash_command="cd /opt/airflow/project && dvc add backend/data/historical_aqi.csv",
     )
 
     fetch_metrics >> dvc_update
