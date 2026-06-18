@@ -1,8 +1,28 @@
 import logging
 import datetime
-import requests
+import os
+import requests as raw_requests
 import numpy as np
 from core.config import settings
+
+class AuthenticatedRequests:
+    @staticmethod
+    def get(url, **kwargs):
+        username = os.getenv("DAGSHUB_USERNAME")
+        token = os.getenv("DAGSHUB_TOKEN")
+        if username and token and "auth" not in kwargs:
+            kwargs["auth"] = (username, token)
+        return raw_requests.get(url, **kwargs)
+
+    @staticmethod
+    def post(url, **kwargs):
+        username = os.getenv("DAGSHUB_USERNAME")
+        token = os.getenv("DAGSHUB_TOKEN")
+        if username and token and "auth" not in kwargs:
+            kwargs["auth"] = (username, token)
+        return raw_requests.post(url, **kwargs)
+
+requests = AuthenticatedRequests()
 
 logger = logging.getLogger("forecast_ai.mlflow_service")
 
