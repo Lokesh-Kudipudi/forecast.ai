@@ -8,10 +8,11 @@ logger = logging.getLogger("forecast_ai.prometheus_service")
 
 class PrometheusService:
     @staticmethod
-    def get_metric_value(query: str) -> float:
+    def get_metric_value(query: str, default: float = 0.0) -> float:
         """
         Queries Prometheus HTTP API for a single instant metric.
-        Raises exception if query fails or server is unreachable.
+        Returns the default value if no data is available yet (e.g. during startup).
+        Raises exception only if the Prometheus server is unreachable.
         """
         url = f"{settings.prometheus_url}/api/v1/query"
         response = requests.get(url, params={"query": query}, timeout=2.0)
@@ -21,8 +22,13 @@ class PrometheusService:
             if results:
                 value_str = results[0].get("value", [None, None])[1]
                 if value_str:
-                    return float(value_str)
-            raise ValueError(f"No metric results returned for query: {query}")
+                    val = float(value_str)
+                    # rate() can produce NaN when there's insufficient data
+                    if val != val:  # NaN check
+                        return default
+                    return val
+            logger.debug(f"No metric results yet for query: {query}, returning default {default}")
+            return default
         else:
             raise RuntimeError(f"Prometheus returned status code {response.status_code}: {response.text}")
 
@@ -37,10 +43,10 @@ class PrometheusService:
         p95_query = "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) * 1000"
         p99_query = "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) * 1000"
         
-        requests_val = cls.get_metric_value(req_query)
-        p50_val = cls.get_metric_value(p50_query)
-        p95_val = cls.get_metric_value(p95_query)
-        p99_val = cls.get_metric_value(p99_query)
+        requests_val = cls.get_metric_value(req_query, default=0.0)
+        p50_val = cls.get_metric_value(p50_query, default=0.0)
+        p95_val = cls.get_metric_value(p95_query, default=0.0)
+        p99_val = cls.get_metric_value(p99_query, default=0.0)
         
         # Query error rate: errors/total
         error_rate_query = 'sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))'
