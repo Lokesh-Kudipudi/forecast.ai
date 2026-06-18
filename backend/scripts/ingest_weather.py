@@ -165,11 +165,11 @@ def log_prediction_vs_actual(records, file_path="data/prediction_vs_actual.csv")
     combined_df = combined_df.drop_duplicates(subset=["timestamp", "city"])
     
     try:
-        combined_df["timestamp"] = pd.to_datetime(combined_df["timestamp"])
+        combined_df["timestamp"] = pd.to_datetime(combined_df["timestamp"], utc=True)
         combined_df = combined_df.sort_values(by="timestamp", ascending=True)
         
         limit_time = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=24)
-        combined_df = combined_df[combined_df["timestamp"] >= pd.to_datetime(limit_time)]
+        combined_df = combined_df[combined_df["timestamp"] >= pd.to_datetime(limit_time, utc=True)]
         combined_df["timestamp"] = combined_df["timestamp"].dt.strftime("%Y-%m-%dT%H:%M:%SZ")
     except Exception as e:
         print(f"Error filtering timestamps for last 24 hours: {e}")

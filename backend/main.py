@@ -301,11 +301,11 @@ def get_overview_summary():
             import numpy as np
             df = pd.read_csv(pv_path)
             if len(df) > 0:
-                df["dt"] = pd.to_datetime(df["timestamp"])
+                df["dt"] = pd.to_datetime(df["timestamp"], utc=True)
                 df = df.sort_values(by="dt")
                 
                 limit_time = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=24)
-                df = df[df["dt"] >= pd.to_datetime(limit_time)]
+                df = df[df["dt"] >= pd.to_datetime(limit_time, utc=True)]
                 
                 if len(df) > 0:
                     df["time_str"] = df["dt"].dt.strftime("%H:00")
