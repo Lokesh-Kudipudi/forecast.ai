@@ -91,6 +91,85 @@ def fetch_weather_and_pollution(city, lat, lon, api_key):
         
     return fetch_weather_and_pollution(city, lat, lon, None)
 
+def make_prediction(city, t, h, w, pm25):
+    """
+    Attempts to load the MLflow model and predict target AQI.
+    Falls back to simple baseline regression if MLflow is unreachable.
+    """
+    try:
+        import sys
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        backend_dir = os.path.dirname(script_dir)
+        if backend_dir not in sys.path:
+            sys.path.append(backend_dir)
+            
+        from core.config import settings
+        from services.mlflow_service import MlflowService
+        import mlflow
+        
+        mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+        prod_model = MlflowService.get_production_model()
+        version = prod_model["version"]
+        model_uri = f"models:/aqi_forecaster_prod/{version}"
+        model = mlflow.pyfunc.load_model(model_uri)
+        
+        features_list = [t, h, w, pm25]
+        import numpy as np
+        pred = model.predict(np.array(features_list).reshape(1, -1))
+        return float(pred[0])
+    except Exception as e:
+        print(f"[{city}] Failed to fetch prediction from MLflow model: {e}. Falling back to baseline prediction.")
+        pred_val = 15.0 + 1.5 * pm25 + 0.5 * (t - 25.0) + np.random.normal(0, 1.0)
+        return float(max(0.0, pred_val))
+
+def log_prediction_vs_actual(records, file_path="data/prediction_vs_actual.csv"):
+    """
+    Logs prediction vs actual entries, keeping only the last 24 hours of data.
+    """
+    new_records = []
+    for r in records:
+        pred_val = make_prediction(r["city"], r["temperature"], r["humidity"], r["wind_speed"], r["pm25_historical"])
+        new_records.append({
+            "timestamp": r["timestamp"],
+            "city": r["city"],
+            "temperature": r["temperature"],
+            "humidity": r["humidity"],
+            "wind_speed": r["wind_speed"],
+            "pm25_historical": r["pm25_historical"],
+            "predicted_aqi": round(pred_val, 2),
+            "actual_aqi": round(r["target_aqi"], 2)
+        })
+        
+    new_df = pd.DataFrame(new_records)
+    
+    if os.path.exists(file_path):
+        try:
+            old_df = pd.read_csv(file_path)
+            combined_df = pd.concat([old_df, new_df], ignore_index=True)
+        except Exception as e:
+            print(f"Failed to read existing prediction_vs_actual file: {e}")
+            combined_df = new_df
+    else:
+        combined_df = new_df
+        
+    combined_df = combined_df.drop_duplicates(subset=["timestamp", "city"])
+    
+    try:
+        combined_df["timestamp"] = pd.to_datetime(combined_df["timestamp"])
+        combined_df = combined_df.sort_values(by="timestamp", ascending=True)
+        
+        limit_time = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=24)
+        combined_df = combined_df[combined_df["timestamp"] >= pd.to_datetime(limit_time)]
+        combined_df["timestamp"] = combined_df["timestamp"].dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    except Exception as e:
+        print(f"Error filtering timestamps for last 24 hours: {e}")
+        
+    combined_df = combined_df.tail(72)
+    
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    combined_df.to_csv(file_path, index=False)
+    print(f"Successfully updated prediction vs actual logs: {len(combined_df)} records.")
+
 def append_to_dataset(new_records, data_path="data/historical_aqi.csv"):
     """
     Appends the fetched data to historical_aqi.csv.
@@ -100,7 +179,6 @@ def append_to_dataset(new_records, data_path="data/historical_aqi.csv"):
     if os.path.exists(data_path):
         try:
             old_df = pd.read_csv(data_path)
-            # Combine and maintain schema ordering
             combined_df = pd.concat([old_df, new_df], ignore_index=True)
             combined_df.to_csv(data_path, index=False)
             print(f"Successfully appended {len(new_records)} records to {data_path}")
@@ -108,7 +186,6 @@ def append_to_dataset(new_records, data_path="data/historical_aqi.csv"):
         except Exception as e:
             print(f"Failed to read existing historical file: {e}")
             
-    # Write new file if it doesn't exist or is corrupted
     os.makedirs(os.path.dirname(data_path), exist_ok=True)
     new_df.to_csv(data_path, index=False)
     print(f"Created new historical file at {data_path} with {len(new_records)} records.")
@@ -118,10 +195,14 @@ if __name__ == "__main__":
     api_key = os.getenv("OPENWEATHER_API_KEY")
     data_path = os.getenv("HISTORICAL_DATA_PATH", "data/historical_aqi.csv")
     
+    base_dir = os.path.dirname(data_path) if os.path.dirname(data_path) else "data"
+    pred_vs_actual_path = os.path.join(base_dir, "prediction_vs_actual.csv")
+    
     records = []
     for city, coords in CITY_COORDINATES.items():
         record = fetch_weather_and_pollution(city, coords["lat"], coords["lon"], api_key)
         records.append(record)
         
     append_to_dataset(records, data_path)
+    log_prediction_vs_actual(records, pred_vs_actual_path)
     print("Ingestion pipeline task completed.")

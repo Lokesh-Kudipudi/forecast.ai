@@ -50,10 +50,29 @@ class DriftService:
         
         # Check if we have enough live requests to run a statistical test
         global _LIVE_REQUESTS_LOG
-        if len(_LIVE_REQUESTS_LOG) < 10:
-            raise ValueError(f"Insufficient live request logs ({len(_LIVE_REQUESTS_LOG)}/10) to run KS-test. Please make predictions first.")
+        
+        # Load features from prediction_vs_actual.csv if they exist to bootstrap live requests autonomously
+        live_requests = list(_LIVE_REQUESTS_LOG)
+        base_dir = os.path.dirname(settings.historical_data_path) if os.path.dirname(settings.historical_data_path) else "data"
+        pv_path = os.path.join(base_dir, "prediction_vs_actual.csv")
+        
+        if os.path.exists(pv_path):
+            try:
+                df_pv = pd.read_csv(pv_path)
+                for _, row in df_pv.iterrows():
+                    live_requests.append({
+                        "temperature": float(row["temperature"]),
+                        "humidity": float(row["humidity"]),
+                        "wind_speed": float(row["wind_speed"]),
+                        "pm25_historical": float(row["pm25_historical"])
+                    })
+            except Exception as e:
+                logger.error(f"Failed to read prediction_vs_actual.csv for drift check: {e}")
+                
+        if len(live_requests) < 10:
+            raise ValueError(f"Insufficient live request logs ({len(live_requests)}/10) to run KS-test. Please make predictions or wait for Airflow hourly ingestion.")
             
-        live_df = pd.DataFrame(_LIVE_REQUESTS_LOG)
+        live_df = pd.DataFrame(live_requests)
             
         results = []
         drifting_count = 0

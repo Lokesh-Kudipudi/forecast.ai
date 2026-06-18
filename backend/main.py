@@ -26,6 +26,7 @@ logging.basicConfig(
     handlers=handlers
 )
 
+from core.config import settings
 from services.mlflow_service import MlflowService
 from services.airflow_service import AirflowService
 from services.prometheus_service import PrometheusService
@@ -287,13 +288,53 @@ def get_overview_summary():
     dag_health = AirflowService.get_dag_health()
     
     # 5. Dynamic hours for actual vs forecast comparison
-    now = datetime.datetime.now(datetime.UTC)
     forecast_points = []
     actual_points = []
-    for i in range(24):
-        time_str = (now - datetime.timedelta(hours=24-i)).strftime("%H:00")
-        forecast_points.append(TimeseriesPoint(t=time_str, value=float(100 + (i * 2) % 30)))
-        actual_points.append(TimeseriesPoint(t=time_str, value=float(102 + (i * 2) % 30 + (i % 3 - 1) * 2)))
+    rmse = 1.15
+    
+    base_dir = os.path.dirname(settings.historical_data_path) if os.path.dirname(settings.historical_data_path) else "data"
+    pv_path = os.path.join(base_dir, "prediction_vs_actual.csv")
+    
+    loaded_real_data = False
+    if os.path.exists(pv_path):
+        try:
+            import pandas as pd
+            import numpy as np
+            df = pd.read_csv(pv_path)
+            if len(df) > 0:
+                df["dt"] = pd.to_datetime(df["timestamp"])
+                df = df.sort_values(by="dt")
+                
+                limit_time = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=24)
+                df = df[df["dt"] >= pd.to_datetime(limit_time)]
+                
+                if len(df) > 0:
+                    df["time_str"] = df["dt"].dt.strftime("%H:00")
+                    df["hour_floor"] = df["dt"].dt.floor("h")
+                    grouped = df.groupby(["hour_floor", "time_str"]).agg({
+                        "predicted_aqi": "mean",
+                        "actual_aqi": "mean"
+                    }).reset_index().sort_values(by="hour_floor")
+                    
+                    for _, row in grouped.iterrows():
+                        forecast_points.append(TimeseriesPoint(t=row["time_str"], value=round(float(row["predicted_aqi"]), 1)))
+                        actual_points.append(TimeseriesPoint(t=row["time_str"], value=round(float(row["actual_aqi"]), 1)))
+                    
+                    squared_errors = (df["predicted_aqi"] - df["actual_aqi"]) ** 2
+                    rmse = float(np.sqrt(squared_errors.mean()))
+                    loaded_real_data = True
+        except Exception:
+            pass
+            
+    if not loaded_real_data:
+        now = datetime.datetime.now(datetime.UTC)
+        forecast_points = []
+        actual_points = []
+        for i in range(24):
+            time_str = (now - datetime.timedelta(hours=24-i)).strftime("%H:00")
+            forecast_points.append(TimeseriesPoint(t=time_str, value=float(100 + (i * 2) % 30)))
+            actual_points.append(TimeseriesPoint(t=time_str, value=float(102 + (i * 2) % 30 + (i % 3 - 1) * 2)))
+        rmse = 1.15
 
     # Tracked Cities snap
     city_snapshots = get_cities()
@@ -329,7 +370,7 @@ def get_overview_summary():
         forecastVsActual=ForecastVsActual(
             forecast=forecast_points,
             actual=actual_points,
-            rmse=1.15
+            rmse=rmse
         ),
         dagHealth=[
             DagSummary(
