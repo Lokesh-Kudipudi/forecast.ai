@@ -71,7 +71,7 @@ export default function OverviewPage() {
     );
   }
 
-  const activeForecast = data.forecastVsActual[selectedCity] || data.forecastVsActual['All'];
+  const activeForecast = data.forecastVsActual[selectedCity] || data.forecastVsActual['All'] || { forecast: [], actual: [], rmse: 0 };
 
   // Map stats for Recharts LineChartCard
   const chartData = activeForecast.forecast.map((pt, index) => {
