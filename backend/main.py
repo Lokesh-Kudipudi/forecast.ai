@@ -429,40 +429,37 @@ def get_dvc_versions():
 
 @app.get("/monitoring/summary", response_model=MonitoringSummary)
 def get_monitoring_summary():
-    return MonitoringSummary(
-        requestsPerMin=MetricValue(
-            value=342.0,
-            trend=TrendDelta(direction="up", value=14.5, label="vs last hour")
-        ),
-        latency={"p50": 12.4, "p95": 45.2, "p99": 98.1},
-        errorRate=0.002,
-        uptime30d=0.9995,
-        incidents30d=0
-    )
+    try:
+        res = PrometheusService.get_monitoring_summary()
+        return MonitoringSummary(
+            requestsPerMin=MetricValue(
+                value=res["requestsPerMin"]["value"],
+                trend=TrendDelta(
+                    direction=res["requestsPerMin"]["trend"]["direction"],
+                    value=res["requestsPerMin"]["trend"]["value"],
+                    label=res["requestsPerMin"]["trend"]["label"]
+                )
+            ),
+            latency=res["latency"],
+            errorRate=res["errorRate"],
+            uptime30d=res["uptime30d"],
+            incidents30d=res["incidents30d"]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/monitoring/timeseries", response_model=List[TimeseriesPoint])
 def get_monitoring_timeseries(metric: str = Query(...)):
-    now = datetime.datetime.now(datetime.UTC)
-    points = []
-    
-    # Latency metric mock
-    if metric == "latency_p95":
-        base_val = 45.0
-        multiplier = 5.0
-    else:  # throughput
-        base_val = 340.0
-        multiplier = 25.0
-        
-    for i in range(24):
-        time_str = (now - datetime.timedelta(hours=24-i)).strftime("%H:00")
-        val = float(base_val + (i % 7 - 3) * multiplier * 0.3 + (i % 3) * multiplier * 0.1)
-        points.append(TimeseriesPoint(t=time_str, value=val))
-        
-    return points
+    try:
+        res = PrometheusService.get_metric_history(metric)
+        return [TimeseriesPoint(**p) for p in res]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/monitoring/alerts", response_model=List[Alert])
 def get_monitoring_alerts():
-    return [
-        Alert(at="2026-06-17T19:30:00Z", source="drift_check", message="Significant data drift detected on feature pm25_historical (p-value: 0.015 < 0.05).", severity="warning"),
-        Alert(at="2026-06-17T01:00:00Z", source="dvc_push", message="DVC push failed: Connection timeout to remote storage.", severity="critical")
-    ]
+    try:
+        res = PrometheusService.get_alerts()
+        return [Alert(**a) for a in res]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
