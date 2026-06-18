@@ -43,6 +43,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-forecast_ai_shared_secret_key}
       OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
       DAGSHUB_USERNAME: ${DAGSHUB_USERNAME}
       DAGSHUB_TOKEN: ${DAGSHUB_TOKEN}
@@ -70,6 +71,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-forecast_ai_shared_secret_key}
       OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
       DAGSHUB_USERNAME: ${DAGSHUB_USERNAME}
       DAGSHUB_TOKEN: ${DAGSHUB_TOKEN}
