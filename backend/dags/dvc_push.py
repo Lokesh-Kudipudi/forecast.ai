@@ -7,7 +7,7 @@ default_args = {
     "depends_on_past": False,
     "email_on_failure": False,
     "email_on_retry": False,
-    "retries": 1,
+    "retries": 0,
     "retry_delay": timedelta(minutes=5),
 }
 
@@ -24,6 +24,7 @@ with DAG(
     push_to_dagshub = BashOperator(
         task_id="dvc_push_to_remote",
         bash_command=(
+            "git config --global --add safe.directory /opt/airflow/project && "
             "cd /opt/airflow/project && "
             "dvc remote modify myremote --local user \"$DAGSHUB_USERNAME\" && "
             "dvc remote modify myremote --local password \"$DAGSHUB_TOKEN\" && "
@@ -32,7 +33,7 @@ with DAG(
             "git config user.email \"airflow@forecast.ai\" && "
             "git add backend/data/historical_aqi.csv.dvc backend/data/.gitignore && "
             "git commit -m \"chore: auto-update dataset pointers [skip ci]\" && "
-            "git push https://\"$DAGSHUB_USERNAME\":\"$DAGSHUB_TOKEN\"@dagshub.com/\"$DAGSHUB_USERNAME\"/forecast.ai.git main"
+            "git push https://\"$DAGSHUB_USERNAME\":\"$GITHUB_TOKEN\"@github.com/\"$DAGSHUB_USERNAME\"/forecast.ai.git main"
         ),
     )
 
