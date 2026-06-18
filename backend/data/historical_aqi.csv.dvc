@@ -1,0 +1,5 @@
+outs:
+- md5: ba40ad562290aa0ce8ae7e3b5000317f
+  size: 116606
+  hash: md5
+  path: historical_aqi.csv
