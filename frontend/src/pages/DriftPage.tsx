@@ -60,42 +60,41 @@ export default function DriftPage() {
     );
   }
 
-  // 2. Error handling (handles insufficient data HTTP 400 and offline errors)
-  if (isError || !driftData) {
-    const axiosError = error as any;
-    const isInsufficientLogs = axiosError?.response?.status === 400;
-
-    if (isInsufficientLogs) {
-      const errorMsg = axiosError?.response?.data?.detail || 'Insufficient live request logs to perform KS-test.';
-      return (
-        <div className="mx-auto max-w-[1240px] px-6 py-8">
-          <PageHeader
-            title="Data Drift Analysis"
-            subtitle="KS-test statistical drift metrics for serving features"
+  // 2. Handle case where database/logs are insufficient (200 OK with insufficientLogs flag)
+  if (driftData?.insufficientLogs) {
+    const errorMsg = driftData.detail || 'Insufficient live request logs to perform KS-test.';
+    return (
+      <div className="mx-auto max-w-[1240px] px-6 py-8">
+        <PageHeader
+          title="Data Drift Analysis"
+          subtitle="KS-test statistical drift metrics for serving features"
+          action={
+            <Button variant="secondary" size="sm" onClick={handleRefresh}>
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Refresh
+            </Button>
+          }
+        />
+        <Card className="flex flex-col items-center justify-center p-10 shadow-card">
+          <EmptyState
+            icon={<Database className="h-6 w-6 text-text-muted" />}
+            title="Insufficient Serving Logs"
+            description={errorMsg}
             action={
-              <Button variant="secondary" size="sm" onClick={handleRefresh}>
-                <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Refresh
-              </Button>
+              <Link to={ROUTES.forecasts}>
+                <Button variant="primary" className="inline-flex items-center gap-1">
+                  Go to Forecasts <ChevronRight className="h-4 w-4" />
+                </Button>
+              </Link>
             }
           />
-          <Card className="flex flex-col items-center justify-center p-10 shadow-card">
-            <EmptyState
-              icon={<Database className="h-6 w-6 text-text-muted" />}
-              title="Insufficient Serving Logs"
-              description={errorMsg}
-              action={
-                <Link to={ROUTES.forecasts}>
-                  <Button variant="primary" className="inline-flex items-center gap-1">
-                    Go to Forecasts <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-              }
-            />
-          </Card>
-        </div>
-      );
-    }
+        </Card>
+      </div>
+    );
+  }
 
+  // 3. Error handling (handles server/connection failures)
+  if (isError || !driftData) {
+    const axiosError = error as any;
     const errMsg = axiosError?.message || 'Failed to connect to the MLOps backend console.';
     return (
       <div className="mx-auto max-w-[1240px] px-6 py-8">

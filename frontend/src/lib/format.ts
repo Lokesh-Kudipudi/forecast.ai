@@ -5,9 +5,13 @@ import type { AqiCategory } from '../types/api';
  * Returns a relative time string (e.g., "12 min ago") from an ISO-8601 string.
  */
 export function formatRelativeTime(iso: string): string {
-  if (!iso) return '—';
+  if (!iso || iso === '—' || iso.trim() === '') return '—';
   try {
-    return formatDistanceToNow(new Date(iso), { addSuffix: true });
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) {
+      return '—';
+    }
+    return formatDistanceToNow(date, { addSuffix: true });
   } catch (error) {
     console.error('[format] Failed to format date', iso, error);
     return 'invalid date';

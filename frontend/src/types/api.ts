@@ -115,6 +115,8 @@ export interface DriftReport {
   driftingCount: number;
   total: number;
   worst: { feature: string; training: TimeseriesPoint[]; live: TimeseriesPoint[] } | null;
+  insufficientLogs?: boolean;
+  detail?: string;
 }
 
 export interface DagSummary {

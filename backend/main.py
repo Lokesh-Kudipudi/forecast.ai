@@ -221,6 +221,8 @@ class DriftReport(BaseModel):
     driftingCount: int
     total: int
     worst: Optional[dict]
+    insufficientLogs: Optional[bool] = False
+    detail: Optional[str] = None
 
 class DagRun(BaseModel):
     dag: str
@@ -453,10 +455,18 @@ def get_drift_latest():
             features=[FeatureDrift(**f) for f in report["features"]],
             driftingCount=report["driftingCount"],
             total=report["total"],
-            worst=report["worst"]
+            worst=report["worst"],
+            insufficientLogs=False
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return DriftReport(
+            features=[],
+            driftingCount=0,
+            total=0,
+            worst=None,
+            insufficientLogs=True,
+            detail=str(e)
+        )
     except FileNotFoundError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:

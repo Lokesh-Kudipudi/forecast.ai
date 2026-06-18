@@ -56,7 +56,7 @@ export function BarChartCard({
       </CardHeader>
 
       <div style={{ width: '100%', height }}>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid stroke={CHART_COLORS.grid} vertical={false} />
             <XAxis
