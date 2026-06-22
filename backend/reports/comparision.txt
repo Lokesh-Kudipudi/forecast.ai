@@ -1,0 +1,23 @@
+====================================================
+ forecast.ai — MLOps Performance 
+====================================================
+Loading existing historical dataset from data/historical_aqi.csv (2233 records)...
+
+--- 1. Evaluating Models (Baseline vs. Improved) ---
+Baseline Model (Linear Regression) RMSE: 0.2820 | MAE: 0.2450
+Improved Model (Random Forest)      RMSE: 0.4841 | MAE: 0.3565
+Accuracy Improvement: -71.66%
+
+====================================================
+
+====================================================
+ forecast.ai — MLOps Performance - After 4 days
+====================================================
+Loading existing historical dataset from data/historical_aqi.csv (2499 records)...
+
+--- 1. Evaluating Models (Baseline vs. Improved) ---
+Baseline Model (Linear Regression) RMSE: 0.5582 | MAE: 0.3686
+Improved Model (Random Forest)      RMSE: 0.6877 | MAE: 0.4306
+Accuracy Improvement: -23.21%
+
+====================================================

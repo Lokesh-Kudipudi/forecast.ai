@@ -1,0 +1,46 @@
+======================================================================
+                   forecast.ai — Model Tuning Report
+======================================================================
+Date: 2026-06-22
+Model Type: RandomForestRegressor
+Target Variable: target_aqi
+Features: temperature, humidity, wind_speed, pm25_historical
+Dataset: data/historical_aqi.csv (2499 records)
+
+Tuning Strategy & Process
+----------------------------------------------------------------------
+Validation Split:
+- Train/Validation Ratio: 80/20 (split with random_state=42)
+
+Search Space Definition:
+- n_estimators: [50, 100, 200, 300, 400, 500, 600, 800]
+- max_depth: [4, 6, 8, 9, 10, 11, 12, 13, 14, 15, 20, None]
+- min_samples_split: [2, 3, 4, 5, 6, 7, 8, 10, 20]
+- min_samples_leaf: [1, 2, 4, 8, 12]
+- max_features: [None, 'sqrt', 'log2', 0.8]
+
+Search Phases:
+- Phase 1 (Broad Search): A randomized grid search over 600 combinations. Evaluated default configurations and isolated optimal ranges.
+- Phase 2 (Focused Search): A complete grid search over 560 candidate parameters centering around the best-performing regions from Phase 1.
+
+Hyperparameter Comparison & Metrics
+----------------------------------------------------------------------
+The performance metrics on the validation dataset split are detailed below:
+
+* Baseline Model (Linear Regression)
+  - RMSE: 0.5582
+  - MAE:  0.3686
+
+* Default Model (Random Forest Regressor)
+  - Parameters: n_estimators=120, max_depth=6
+  - RMSE: 0.7397
+  - MAE:  0.4732
+  - Accuracy vs. Baseline: -32.53%
+
+* Optimal Model (Random Forest Regressor)
+  - Parameters: n_estimators=800, max_depth=14, min_samples_split=6,
+                min_samples_leaf=1, max_features=None
+  - RMSE: 0.6877
+  - MAE:  0.4306
+  - Accuracy vs. Baseline: -23.21%
+  - Net Error Reduction vs. Default RF: 7.03% (RMSE decrease of 0.052)
