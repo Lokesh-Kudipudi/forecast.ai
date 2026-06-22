@@ -92,9 +92,19 @@ def run_retraining_pipeline():
     baseline_rmse = np.sqrt(mean_squared_error(y_val, baseline_preds))
     
     # Candidate Model (Random Forest)
-    n_estimators = 120
-    max_depth = 6
-    improved_model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
+    n_estimators = 800
+    max_depth = 14
+    min_samples_split = 6
+    min_samples_leaf = 1
+    max_features = None
+    improved_model = RandomForestRegressor(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        min_samples_split=min_samples_split,
+        min_samples_leaf=min_samples_leaf,
+        max_features=max_features,
+        random_state=42
+    )
     improved_model.fit(X_train, y_train)
     improved_preds = improved_model.predict(X_val)
     improved_rmse = np.sqrt(mean_squared_error(y_val, improved_preds))
@@ -142,6 +152,9 @@ def run_retraining_pipeline():
         mlflow.log_param("algorithm", "RandomForest")
         mlflow.log_param("n_estimators", n_estimators)
         mlflow.log_param("max_depth", max_depth)
+        mlflow.log_param("min_samples_split", min_samples_split)
+        mlflow.log_param("min_samples_leaf", min_samples_leaf)
+        mlflow.log_param("max_features", str(max_features))
         
         # Log metrics
         mlflow.log_metric("baseline_rmse", baseline_rmse)
