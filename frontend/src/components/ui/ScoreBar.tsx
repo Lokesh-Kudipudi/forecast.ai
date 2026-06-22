@@ -1,8 +1,8 @@
 import { cn } from '../../lib/cn';
 
 export interface ScoreBarProps {
-  value: number; // Fraction between 0 and 1 (e.g. p-value)
-  verdict: 'ok' | 'borderline' | 'drift';
+  value: number; // Fraction between 0 and 1
+  verdict: 'ok' | 'borderline' | 'failed';
   className?: string;
 }
 
@@ -12,7 +12,7 @@ export function ScoreBar({ value, verdict, className }: ScoreBarProps) {
   const colors = {
     ok: 'bg-success',
     borderline: 'bg-warning',
-    drift: 'bg-danger',
+    failed: 'bg-danger',
   };
 
   return (

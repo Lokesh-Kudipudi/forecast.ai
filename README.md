@@ -1,6 +1,6 @@
 # forecast.ai — MLOps Air Quality Index (AQI) Forecasting Console
 
-`forecast.ai` is an end-to-end MLOps platform for managing, versioning, and monitoring real-time Air Quality Index (AQI) forecasts in target South Indian cities (Rajahmundry, Tada, and Chennai). The platform integrates live weather data ingestion, automated model training pipelines, strict performance validation gating, MLflow model registries, dataset version control (DVC), statistical data drift detection, and production serving observability.
+`forecast.ai` is an end-to-end MLOps platform for managing, versioning, and monitoring real-time Air Quality Index (AQI) forecasts in target South Indian cities (Rajahmundry, Tada, and Chennai). The platform integrates live weather data ingestion, automated model training pipelines, strict performance validation gating, MLflow model registries, dataset version control (DVC), and production serving observability.
 
 ---
 
@@ -20,7 +20,6 @@
 *   **Automated Ingestion Pipeline**: Containerized Airflow scheduler runs hourly tasks to query live weather and pollution parameters via the OpenWeatherMap API and appends logs to the dataset.
 *   **Model Registry Gating**: Evaluates candidate models (Random Forest) against active baseline models and registers promotions in MLflow only if they exceed strict accuracy improvement thresholds ($\ge 15\%$).
 *   **Dataset Versioning (DVC)**: Tracks dataset mutations through lightweight `.dvc` files pushed to DagsHub remote stores, enabling absolute reproducibility of experiment runs.
-*   **Statistical Data Drift Monitor**: Performs real-time two-sample Kolmogorov-Smirnov (K-S) tests on incoming serving payloads to detect feature-level covariate shift (such as temperature anomalies or smog spikes).
 *   **Observability & Operations**: Exposes request throughput, latency quantiles (p50/p95/p99), and error rates via Prometheus metrics, visualized directly on a pre-provisioned Grafana dashboard.
 *   **Nginx Reverse Proxy**: Frontend container acts as a reverse proxy on port 80, serving static SPA assets and forwarding API queries to the FastAPI container.
 
@@ -47,10 +46,6 @@ The application is deployed on a single-instance AWS EC2 host under the followin
 *   **Proof**: Baseline Linear Regression RMSE: **~15.67** vs. Optimized Random Forest Regressor RMSE: **~12.92** (exceeding the target of $\ge 15\%$).
 *   **Verification / Reproduction**: Run `uv run python scripts/reproduce_comparison.py` inside the `backend/` directory.
 
-### 2. Real-Time Serving Data Drift Detection Subsystem
-*   **Point**: Architected a low-latency real-time serving data drift detection subsystem using the two-sample Kolmogorov-Smirnov (K-S) statistical test. Engineered the system to analyze live inference feature payloads against baseline training distributions, flagging covariate shifts (e.g. heatwaves or smog spikes) in **under 60 milliseconds** to trigger automated model retraining.
-*   **Proof**: Computes KS statistics and detects anomalies (p-value < 0.05) instantly (in **< 10ms**) on the FastAPI backend during live serving, raising immediate console alerts.
-*   **Verification / Reproduction**: Run `uv run python scripts/reproduce_comparison.py` inside the `backend/` directory.
 
 ---
 

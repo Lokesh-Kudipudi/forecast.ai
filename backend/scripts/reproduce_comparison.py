@@ -5,7 +5,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error
-from scipy.stats import ks_2samp
 
 def load_or_create_data(data_path="data/historical_aqi.csv"):
     """
@@ -70,7 +69,14 @@ def run_evaluation_comparison(df):
     baseline_mae = mean_absolute_error(y_val, baseline_preds)
     
     # Improved Model: Random Forest
-    improved_model = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=42)
+    improved_model = RandomForestRegressor(
+        n_estimators=800,
+        max_depth=14,
+        min_samples_split=6,
+        min_samples_leaf=1,
+        max_features=None,
+        random_state=42
+    )
     improved_model.fit(X_train, y_train)
     improved_preds = improved_model.predict(X_val)
     improved_rmse = np.sqrt(mean_squared_error(y_val, improved_preds))
@@ -83,52 +89,11 @@ def run_evaluation_comparison(df):
     
     return baseline_rmse, improved_rmse
 
-def simulate_and_detect_drift(df):
-    """
-    Simulates a live serving features dataset with drift, and runs Kolmogorov-Smirnov statistical tests.
-    """
-    print("\n--- 2. Simulating & Detecting Data Drift (KS-Test) ---")
-    np.random.seed(1337)
-    n_samples = 100
-    
-    # Normal live requests features (no drift)
-    normal_live = pd.DataFrame({
-        "temperature": np.random.normal(25.2, 4.8, n_samples),
-        "humidity": np.random.normal(59.5, 9.8, n_samples),
-        "wind_speed": np.random.exponential(3.1, n_samples),
-        "pm25_historical": np.random.normal(51.0, 14.5, n_samples)
-    })
-    
-    # Drifted live requests features (severe drift on PM2.5 and temperature)
-    drifted_live = pd.DataFrame({
-        "temperature": np.random.normal(32.5, 3.5, n_samples), # Heatwave scenario (+7.5°C)
-        "humidity": np.random.normal(52.0, 12.0, n_samples),
-        "wind_speed": np.random.exponential(2.8, n_samples),
-        "pm25_historical": np.random.normal(92.0, 22.0, n_samples) # Heavy smog/pollution (+42 PM2.5)
-    })
-    
-    for label, live_df in [("Normal Serving (No Drift)", normal_live), ("Drifted Serving (Drift Active)", drifted_live)]:
-        print(f"\nEvaluating dataset: {label}")
-        for feature in ["temperature", "humidity", "wind_speed", "pm25_historical"]:
-            baseline_distribution = df[feature].dropna()
-            live_distribution = live_df[feature].dropna()
-            
-            # Run Kolmogorov-Smirnov statistical check
-            statistic, p_value = ks_2samp(baseline_distribution, live_distribution)
-            
-            verdict = "OK"
-            if p_value < 0.05:
-                verdict = "DRIFT DETECTED (p < 0.05)"
-            elif p_value < 0.10:
-                verdict = "BORDERLINE WARNING (0.05 <= p < 0.10)"
-                
-            print(f"  Feature: {feature:15} | KS Stat: {statistic:.4f} | p-value: {p_value:.6f} | Verdict: {verdict}")
 
 if __name__ == "__main__":
     print("====================================================")
-    print(" forecast.ai — MLOps Performance & Drift Reproducer ")
+    print(" forecast.ai — MLOps Performance ")
     print("====================================================")
     df = load_or_create_data()
     run_evaluation_comparison(df)
-    simulate_and_detect_drift(df)
     print("\n====================================================")

@@ -31,7 +31,6 @@ function formatDagName(id: string): string {
   switch (id) {
     case 'hourly_ingestion': return 'Hourly Weather Ingestion';
     case 'weekly_retraining': return 'Weekly ML Retraining';
-    case 'drift_check': return 'Data Drift Check';
     case 'dvc_push': return 'DVC Dataset Push';
     default: return id;
   }

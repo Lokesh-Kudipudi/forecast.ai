@@ -18,7 +18,6 @@ export interface OverviewSummary {
   productionModel: { name: string; version: string; stage: ModelStage; algorithm: string };
   validationRmse: { value: number; trend: TrendDelta };
   latencyP95Ms: { value: number; trend: TrendDelta };
-  drift: { driftingCount: number; total: number; worstFeature: string | null };
   forecastVsActual: Record<string, { forecast: TimeseriesPoint[]; actual: TimeseriesPoint[]; rmse: number }>;
   dagHealth: DagSummary[];
   citySnapshot: CitySnapshot[];
@@ -104,20 +103,6 @@ export interface TrainingRunDetail extends TrainingRun {
   registeredVersion: string | null;
 }
 
-export interface FeatureDrift {
-  feature: 'temperature' | 'humidity' | 'wind_speed' | 'pm25_historical';
-  pValue: number;
-  verdict: 'ok' | 'borderline' | 'drift';
-}
-
-export interface DriftReport {
-  features: FeatureDrift[];
-  driftingCount: number;
-  total: number;
-  worst: { feature: string; training: TimeseriesPoint[]; live: TimeseriesPoint[] } | null;
-  insufficientLogs?: boolean;
-  detail?: string;
-}
 
 export interface DagSummary {
   dag: string;

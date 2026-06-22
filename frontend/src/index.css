@@ -27,9 +27,9 @@
   /* ---------- Status ---------- */
   --color-success:        #10B981;   /* healthy, RMSE-down, success dot */
   --color-success-soft:   #D1FAE5;   /* success badge bg */
-  --color-warning:        #F59E0B;   /* warning, borderline drift */
+  --color-warning:        #F59E0B;   /* warning status */
   --color-warning-soft:   #FEF3C7;   /* warning badge bg, staging chip bg */
-  --color-danger:         #EF4444;   /* failure, drift detected, error */
+  --color-danger:         #EF4444;   /* failure, error status */
   --color-danger-soft:    #FEE2E2;   /* danger badge bg */
   --color-info:           #0284C7;   /* informational badges (= primary) */
   --color-info-soft:      #E0F2FE;   /* info badge bg (= primary-soft) */

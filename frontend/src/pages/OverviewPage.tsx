@@ -140,8 +140,6 @@ export default function OverviewPage() {
     },
   ];
 
-  const worstDriftFeature = data.drift.worstFeature;
-  const isDrifting = data.drift.driftingCount > 0;
 
   return (
     <div className="mx-auto max-w-[1240px] px-6 py-8">
@@ -161,7 +159,7 @@ export default function OverviewPage() {
       />
 
       {/* Stats Cards Section */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 lg:grid-cols-3">
         <StatCard
           label="Active Production Model"
           value={`v${data.productionModel.version}`}
@@ -197,22 +195,6 @@ export default function OverviewPage() {
                 goodWhen="down"
               />
               <span className="text-text-muted">vs last 24h</span>
-            </div>
-          }
-        />
-        <StatCard
-          label="Feature Drift Summary"
-          value={`${data.drift.driftingCount} / ${data.drift.total}`}
-          footer={
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={isDrifting ? 'text-danger font-semibold' : 'text-success font-semibold'}>
-                {isDrifting ? 'Drift Detected' : 'No Drift'}
-              </span>
-              {worstDriftFeature && (
-                <span className="text-text-subtle text-[11px]">
-                  (Worst: <code className="font-mono text-[10px] bg-surface-muted px-1 py-0.5 rounded">{worstDriftFeature}</code>)
-                </span>
-              )}
             </div>
           }
         />

@@ -21,11 +21,10 @@ class AirflowService:
         Directly queries the Airflow Postgres metadata database to aggregate DAG health metrics.
         Raises exception if the database is unreachable.
         """
-        dags = ["hourly_ingestion", "weekly_retraining", "drift_check", "dvc_push"]
+        dags = ["hourly_ingestion", "weekly_retraining", "dvc_push"]
         schedules = {
             "hourly_ingestion": "0 * * * *",
             "weekly_retraining": "0 0 * * 0",
-            "drift_check": "*/30 * * * *",
             "dvc_push": "0 1 * * *"
         }
         
@@ -34,7 +33,8 @@ class AirflowService:
             cursor = conn.cursor()
             
             # Query latest runs and statistics
-            query = """
+            placeholders = ", ".join(["%s"] * len(dags))
+            query = f"""
                 SELECT 
                     dag_id,
                     MAX(execution_date) as last_run,
@@ -42,17 +42,17 @@ class AirflowService:
                         NULLIF(COUNT(CASE WHEN state IN ('success', 'failed') THEN 1 END), 0) as success_rate,
                     AVG(EXTRACT(EPOCH FROM (end_date - start_date))) as avg_duration
                 FROM dag_run
-                WHERE dag_id IN (%s, %s, %s, %s)
+                WHERE dag_id IN ({placeholders})
                 GROUP BY dag_id;
             """
             cursor.execute(query, tuple(dags))
             rows = cursor.fetchall()
             
             # Query last state for status indicator
-            status_query = """
+            status_query = f"""
                 SELECT DISTINCT ON (dag_id) dag_id, state, execution_date
                 FROM dag_run
-                WHERE dag_id IN (%s, %s, %s, %s)
+                WHERE dag_id IN ({placeholders})
                 ORDER BY dag_id, execution_date DESC;
             """
             cursor.execute(status_query, tuple(dags))
@@ -89,14 +89,15 @@ class AirflowService:
         Directly queries the Airflow Postgres database to retrieve recent DAG runs history.
         Raises exception if DB connection fails.
         """
-        dags = ["hourly_ingestion", "weekly_retraining", "drift_check", "dvc_push"]
+        dags = ["hourly_ingestion", "weekly_retraining", "dvc_push"]
         
         try:
             conn = psycopg2.connect(settings.airflow_db_url, connect_timeout=3)
             cursor = conn.cursor()
             
             # Query recent runs
-            query = """
+            placeholders = ", ".join(["%s"] * len(dags))
+            query = f"""
                 SELECT 
                     dag_id,
                     run_id,
@@ -104,7 +105,7 @@ class AirflowService:
                     end_date,
                     state
                 FROM dag_run
-                WHERE dag_id IN (%s, %s, %s, %s)
+                WHERE dag_id IN ({placeholders})
                 ORDER BY start_date DESC
                 LIMIT %s;
             """

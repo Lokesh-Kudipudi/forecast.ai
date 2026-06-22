@@ -5,7 +5,6 @@ import OverviewPage from './pages/OverviewPage';
 import ForecastsPage from './pages/ForecastsPage';
 import ModelsPage from './pages/ModelsPage';
 import RunsPage from './pages/RunsPage';
-import DriftPage from './pages/DriftPage';
 import PipelinesPage from './pages/PipelinesPage';
 import MonitoringPage from './pages/MonitoringPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -19,7 +18,6 @@ export default function App() {
         <Route path={ROUTES.forecasts} element={<ForecastsPage />} />
         <Route path={ROUTES.models} element={<ModelsPage />} />
         <Route path={ROUTES.runs} element={<RunsPage />} />
-        <Route path={ROUTES.drift} element={<DriftPage />} />
         <Route path={ROUTES.pipelines} element={<PipelinesPage />} />
         <Route path={ROUTES.monitoring} element={<MonitoringPage />} />
         <Route path="*" element={<NotFoundPage />} />

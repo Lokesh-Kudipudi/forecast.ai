@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # Prometheus server API URL
     prometheus_url: str = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
     
-    # Path to baseline/historical dataset (for drift checks)
+    # Path to baseline/historical dataset
     historical_data_path: str = os.getenv("HISTORICAL_DATA_PATH", "data/historical_aqi.csv")
     
     @field_validator("mlflow_tracking_uri", "prometheus_url", mode="after")

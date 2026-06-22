@@ -30,7 +30,6 @@ from core.config import settings
 from services.mlflow_service import MlflowService
 from services.airflow_service import AirflowService
 from services.prometheus_service import PrometheusService
-from services.drift_service import DriftService
 from services.dvc_service import DvcService
 
 
@@ -95,10 +94,6 @@ class MetricValue(BaseModel):
     value: float
     trend: TrendDelta
 
-class DriftSummary(BaseModel):
-    driftingCount: int
-    total: int
-    worstFeature: Optional[str]
 
 class TimeseriesPoint(BaseModel):
     t: str
@@ -129,7 +124,6 @@ class OverviewSummary(BaseModel):
     productionModel: ProductionModel
     validationRmse: MetricValue
     latencyP95Ms: MetricValue
-    drift: DriftSummary
     forecastVsActual: Dict[str, ForecastVsActual]
     dagHealth: List[DagSummary]
     citySnapshot: List[CitySnapshot]
@@ -212,18 +206,6 @@ class TrainingRunDetail(TrainingRun):
     artifactPath: str
     registeredVersion: Optional[str]
 
-class FeatureDrift(BaseModel):
-    feature: str  # "temperature" | "humidity" | "wind_speed" | "pm25_historical"
-    pValue: float
-    verdict: str  # "ok" | "borderline" | "drift"
-
-class DriftReport(BaseModel):
-    features: List[FeatureDrift]
-    driftingCount: int
-    total: int
-    worst: Optional[dict]
-    insufficientLogs: Optional[bool] = False
-    detail: Optional[str] = None
 
 class DagRun(BaseModel):
     dag: str
@@ -272,17 +254,6 @@ def get_overview_summary():
     
     # 2. Fetch latency / throughput from Prometheus
     mon_summary = PrometheusService.get_monitoring_summary()
-    
-    # 3. Fetch Drift metrics
-    try:
-        drift_report = DriftService.calculate_drift()
-        drifting_count = drift_report["driftingCount"]
-        total_drift_features = drift_report["total"]
-        worst_feature = drift_report["worst"]["feature"] if drift_report["worst"] else None
-    except ValueError:
-        drifting_count = 0
-        total_drift_features = 4
-        worst_feature = None
     
     # 4. Fetch DAG health from Airflow Postgres DB
     dag_health = AirflowService.get_dag_health()
@@ -405,11 +376,6 @@ def get_overview_summary():
                 label="vs last 24h"
             )
         ),
-        drift=DriftSummary(
-            driftingCount=drifting_count,
-            total=total_drift_features,
-            worstFeature=worst_feature
-        ),
         forecastVsActual=forecast_vs_actual_by_city,
         dagHealth=[
             DagSummary(
@@ -447,13 +413,6 @@ def post_predict(request: PredictRequest):
         # Default fallback
         current = CurrentConditions(aqi=35, category="good", pm25=8.5, pm10=16.0, temperature=30.0, humidity=70.0, windSpeed=4.2)
     
-    # Log incoming request features to evaluate drift dynamically
-    DriftService.log_request({
-        "temperature": current.temperature,
-        "humidity": current.humidity,
-        "wind_speed": current.windSpeed,
-        "pm25_historical": current.pm25
-    })
 
     # Fetch production model and run inference
     prod_model = MlflowService.get_production_model()
@@ -527,30 +486,6 @@ def get_run_detail(runId: str):
             raise HTTPException(status_code=404, detail=err_msg)
         raise HTTPException(status_code=500, detail=err_msg)
 
-@app.get("/drift/latest", response_model=DriftReport)
-def get_drift_latest():
-    try:
-        report = DriftService.calculate_drift()
-        return DriftReport(
-            features=[FeatureDrift(**f) for f in report["features"]],
-            driftingCount=report["driftingCount"],
-            total=report["total"],
-            worst=report["worst"],
-            insufficientLogs=False
-        )
-    except ValueError as e:
-        return DriftReport(
-            features=[],
-            driftingCount=0,
-            total=0,
-            worst=None,
-            insufficientLogs=True,
-            detail=str(e)
-        )
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/pipelines/dags", response_model=List[DagSummary])
 def get_pipelines_dags():

@@ -1,10 +1,5 @@
 import type { AqiCategory } from '../types/api';
 
-/** KS-test p-value below which a feature is considered drifting. */
-export const DRIFT_P_THRESHOLD = 0.05;
-/** Upper bound of the "borderline" drift band (warning, not yet drift). */
-export const DRIFT_BORDERLINE_MAX = 0.1;
-
 /** Polling interval for live pages (Overview, Monitoring), in ms. */
 export const REFRESH_INTERVAL_MS = 60_000;
 
